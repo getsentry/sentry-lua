@@ -224,6 +224,11 @@ jobs:
             LUAROCKS="/c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe"
           else
             LUAROCKS="luarocks"
+            # Configure luarocks with the proper LUA_DIR and LUA_INCDIR for standard Lua
+            echo "Configuring luarocks for standard Lua with LUA_DIR=$LUA_DIR and LUA_INCDIR=$LUA_INCDIR"
+            luarocks config lua_dir "$LUA_DIR" || echo "Failed to configure lua_dir"
+            luarocks config variables.LUA_DIR "$LUA_DIR" || echo "Failed to configure variables.LUA_DIR"  
+            luarocks config variables.LUA_INCDIR "$LUA_INCDIR" || echo "Failed to configure variables.LUA_INCDIR"
           fi
           
           $LUAROCKS install busted
