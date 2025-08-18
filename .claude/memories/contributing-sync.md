@@ -26,6 +26,7 @@ brew install openssl
 
 **Windows:**
 - SSL support built-in
+- MSVC build tools (ilammy/msvc-dev-cmd@v1)
 
 #### Lua Environment
 - **Version**: Lua 5.4 (required)

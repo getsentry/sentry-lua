@@ -21,6 +21,7 @@ brew install openssl
 
 #### Windows
 SSL support is typically built-in with recent Lua installations.
+MSVC build tools are automatically configured in CI for Lua compilation.
 
 ### Lua Environment
 
