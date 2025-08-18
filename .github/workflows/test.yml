@@ -12,9 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit"]
+        lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit-2.0", "luajit-2.1"]
         include:
-          - lua-version: "luajit"
+          - lua-version: "luajit-2.0" 
+            luajit-version: "2.0.5"
+            luajit-label: "LuaJIT 2.0.5"
+          - lua-version: "luajit-2.1"
             luajit-version: "2.1.0-beta3"
             luajit-label: "LuaJIT 2.1.0-beta3"
     
@@ -28,13 +31,13 @@ jobs:
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
     
     - name: Setup Lua (standard versions only)
-      if: matrix.lua-version != 'luajit'
+      if: ${{ !contains(matrix.lua-version, 'luajit') }}
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
     
     - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu (via apt)
-      if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y luajit libluajit-5.1-dev
@@ -44,7 +47,7 @@ jobs:
         echo "LUA_INCDIR=/usr/include/luajit-2.1" >> $GITHUB_ENV
     
     - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on macOS (via Homebrew)
-      if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-latest'
       run: |
         brew install luajit
         # Create symlinks for compatibility
@@ -54,7 +57,7 @@ jobs:
         echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
     - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on Windows (manual install)
-      if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest'
       shell: cmd
       run: |
         curl -L -o luajit.zip https://luajit.org/download/LuaJIT-${{ matrix.luajit-version }}.zip
@@ -71,11 +74,11 @@ jobs:
         echo LUA_INCDIR=C:\luajit\include>>%GITHUB_ENV%
     
     - name: Setup LuaRocks (Linux/macOS only)
-      if: matrix.lua-version != 'luajit' && matrix.os != 'windows-latest'
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
     
     - name: Setup LuaRocks (Windows standard Lua)
-      if: matrix.lua-version != 'luajit' && matrix.os == 'windows-latest'
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest' }}
       shell: bash
       run: |
         # Install LuaRocks manually for Windows
@@ -84,7 +87,7 @@ jobs:
         echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu
-      if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get install -y luarocks
         # Create user config directory
@@ -97,7 +100,7 @@ jobs:
         echo 'LUAROCKS_FLAGS=--local' >> $GITHUB_ENV
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on macOS
-      if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-latest'
       run: |
         brew install luarocks
         # Configure luarocks to work with luajit
@@ -106,7 +109,7 @@ jobs:
         luarocks config variables.LUA_INCDIR $(brew --prefix luajit)/include/luajit-2.1
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Windows
-      if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest'
       shell: bash
       run: |
         # Install LuaRocks manually for Windows
@@ -140,7 +143,7 @@ jobs:
       shell: bash
       run: |
         # Configure Lua paths for LuaRocks on Windows
-        if [ "${{ matrix.lua-version }}" != "luajit" ]; then
+        if [[ "${{ matrix.lua-version }}" != *"luajit"* ]]; then
           # For standard Lua versions, configure proper header path
           LUA_DIR=$(dirname $(which lua))
           LUA_INCDIR="$LUA_DIR/../include"
@@ -151,7 +154,7 @@ jobs:
         fi
         
         # Install Teal using luarocks
-        if [ "${{ matrix.lua-version }}" = "luajit" ]; then
+        if [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
           /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe install tl
         else
           luarocks install tl
@@ -165,7 +168,7 @@ jobs:
       shell: bash
       run: |
         # For Ubuntu LuaJIT, use --local flag to avoid permission issues
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [ "${{ matrix.lua-version }}" = "luajit" ]; then
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
           echo "Installing dependencies locally for Ubuntu LuaJIT..."
           luarocks install --local busted
           luarocks install --local tl
