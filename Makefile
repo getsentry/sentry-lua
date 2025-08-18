@@ -29,7 +29,10 @@ coverage-report: test-coverage
 		echo "LCOV reporter failed, using luacov report format"; \
 		cp luacov.report.out coverage.info; \
 	fi
-	@echo "Coverage report generated in coverage.info"
+	@# Convert build/ paths to src/ paths for Codecov compatibility
+	@sed -i.bak 's|SF:build/sentry|SF:src/sentry|g' coverage.info
+	@rm -f coverage.info.bak
+	@echo "Coverage report generated in coverage.info with corrected paths"
 
 # Clean build artifacts
 clean:
