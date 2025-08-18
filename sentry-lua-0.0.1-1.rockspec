@@ -1,5 +1,5 @@
 package = "sentry-lua"
-version = "dev-1"
+version = "0.0.1-1"
 source = {
    url = "git+https://github.com/bruno-garcia/sentry-lua.git"
 }
@@ -29,3 +29,5 @@ build = {
       ["sentry.utils.serialize"] = "build/sentry/utils/serialize.lua"
    }
 }
+
+
