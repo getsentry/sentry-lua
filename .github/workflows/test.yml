@@ -23,8 +23,8 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
     
-    - name: Setup Lua (standard versions)
-      if: matrix.lua-version != 'luajit' || matrix.os != 'macos-latest'
+    - name: Setup Lua (standard versions and LuaJIT on Linux)
+      if: matrix.lua-version != 'luajit' || matrix.os == 'ubuntu-latest'
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
@@ -37,8 +37,15 @@ jobs:
         sudo ln -sf $(which luajit) /usr/local/bin/lua
         echo "$(dirname $(which luajit))" >> $GITHUB_PATH
     
-    - name: Setup LuaRocks (standard installations)
-      if: matrix.lua-version != 'luajit' || matrix.os != 'macos-latest'
+    - name: Setup LuaJIT on Windows (via Chocolatey)
+      if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      run: |
+        choco install luajit -y
+        # Add to PATH
+        echo "C:\ProgramData\chocolatey\lib\luajit\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    
+    - name: Setup LuaRocks (standard installations and LuaJIT on Linux)
+      if: matrix.lua-version != 'luajit' || matrix.os == 'ubuntu-latest'
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
     
     - name: Setup LuaRocks for LuaJIT on macOS
@@ -49,6 +56,14 @@ jobs:
         luarocks config lua_interpreter luajit
         luarocks config variables.LUA_DIR /opt/homebrew/opt/luajit
         luarocks config variables.LUA_INCDIR /opt/homebrew/opt/luajit/include/luajit-2.1
+    
+    - name: Setup LuaRocks for LuaJIT on Windows
+      if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      run: |
+        choco install luarocks -y
+        # Configure luarocks to work with luajit
+        luarocks config lua_interpreter luajit
+        luarocks config variables.LUA_DIR "C:\ProgramData\chocolatey\lib\luajit\tools"
     
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
