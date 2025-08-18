@@ -120,9 +120,12 @@ jobs:
         curl -L -o luarocks.zip https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip
         unzip luarocks.zip -d /c/luarocks
         echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
-        # Configure luarocks to work with luajit
-        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config lua_interpreter luajit
-        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_DIR "C:/luajit"
+        # Create luarocks config directory
+        mkdir -p "$HOME/AppData/Roaming/luarocks" || true
+        # Configure luarocks to work with luajit (with error handling)
+        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config lua_interpreter luajit || echo "Config lua_interpreter failed, continuing"
+        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_DIR "C:/luajit" || echo "Config LUA_DIR failed, continuing"
+        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_INCDIR "C:/luajit/include" || echo "Config LUA_INCDIR failed, continuing"
     
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
@@ -214,6 +217,22 @@ jobs:
           luarocks install --local luacov-reporter-lcov
           # Add local luarocks bin to PATH
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
+        elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo "Installing dependencies for Windows..."
+          # Use the correct luarocks path for Windows
+          if [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
+            LUAROCKS="/c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe"
+          else
+            LUAROCKS="luarocks"
+          fi
+          
+          $LUAROCKS install busted
+          # tl is already installed in the Teal compiler step
+          $LUAROCKS install lua-cjson
+          $LUAROCKS install luasocket
+          $LUAROCKS install luasec
+          $LUAROCKS install luacov
+          $LUAROCKS install luacov-reporter-lcov
         else
           make install
         fi
