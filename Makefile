@@ -29,10 +29,17 @@ coverage-report: test-coverage
 		echo "LCOV reporter failed, using luacov report format"; \
 		cp luacov.report.out coverage.info; \
 	fi
-	@# Convert build/ paths to src/ paths for Codecov compatibility
-	@sed -i.bak 's|SF:build/sentry|SF:src/sentry|g' coverage.info
+	@# Map build/*.lua file paths to src/*.tl source paths for Codecov
+	@sed -i.bak 's|SF:build/sentry/\(.*\)\.lua|SF:src/sentry/\1.tl|g' coverage.info
 	@rm -f coverage.info.bak
-	@echo "Coverage report generated in coverage.info with corrected paths"
+	@# Verify that mapped source files actually exist
+	@echo "Verifying coverage file paths..."
+	@grep "^SF:" coverage.info | sed 's/^SF://' | while read -r file; do \
+		if [ ! -f "$$file" ]; then \
+			echo "Warning: Source file $$file not found in repository"; \
+		fi; \
+	done
+	@echo "Coverage report generated in coverage.info with source mapping"
 
 # Clean build artifacts
 clean:
