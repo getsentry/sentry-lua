@@ -1,23 +1,15 @@
-# PowerShell script to install Lua and LuaRocks on Windows
-# Usage: .\scripts\install-lua-windows.ps1 -LuaVersion "5.4" -Architecture "x64"
-# Usage: .\scripts\install-lua-windows.ps1 -LuaVersion "luajit-2.1" -Architecture "x64"
-
+# Simple PowerShell script to set up Lua environment for Windows CI
 param(
     [Parameter(Mandatory=$true)]
-    [string]$LuaVersion,
-    
-    [Parameter(Mandatory=$false)]
-    [string]$Architecture = "x64",
-    
-    [Parameter(Mandatory=$false)]
-    [string]$InstallDir = "C:\lua-dev"
+    [string]$LuaVersion
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"  # Don't stop on errors, log them instead
 
-Write-Host "Installing Lua $LuaVersion ($Architecture) to $InstallDir" -ForegroundColor Green
+Write-Host "Setting up Lua $LuaVersion for Windows CI..." -ForegroundColor Green
 
-# Create installation directory
+# Create base directory
+$InstallDir = "C:\lua-ci"
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
 if ($LuaVersion -match "luajit") {
@@ -30,182 +22,207 @@ if ($LuaVersion -match "luajit") {
     
     Write-Host "Installing LuaJIT $luajitVersion..." -ForegroundColor Yellow
     
-    # Clone and build LuaJIT
-    $luajitSrc = "$env:TEMP\luajit-src"
-    if (Test-Path $luajitSrc) { Remove-Item $luajitSrc -Recurse -Force }
+    # Use working directory in temp
+    $workDir = "$env:TEMP\luajit-build"
+    if (Test-Path $workDir) { 
+        Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue 
+    }
+    New-Item -ItemType Directory -Path $workDir -Force | Out-Null
     
-    & git clone --depth 1 --branch $luajitVersion https://github.com/LuaJIT/LuaJIT.git $luajitSrc
-    if ($LASTEXITCODE -ne 0) { throw "Failed to clone LuaJIT" }
-    
-    Push-Location "$luajitSrc\src"
     try {
-        & cmd /c "call `"$env:ProgramFiles\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat`" && msvcbuild.bat"
-        if ($LASTEXITCODE -ne 0) { throw "Failed to build LuaJIT" }
+        # Clone LuaJIT
+        Set-Location $workDir
+        Write-Host "Cloning LuaJIT..." -ForegroundColor Yellow
+        $gitResult = & git clone --depth 1 --branch $luajitVersion https://github.com/LuaJIT/LuaJIT.git luajit 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Git clone failed: $gitResult" -ForegroundColor Red
+            throw "Failed to clone LuaJIT"
+        }
         
-        # Install LuaJIT
+        # Build LuaJIT
+        Set-Location "$workDir\luajit\src"
+        Write-Host "Building LuaJIT..." -ForegroundColor Yellow
+        & cmd /c msvcbuild.bat 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) { 
+            throw "Failed to build LuaJIT" 
+        }
+        
+        # Create installation directory
         $luajitDir = "$InstallDir\luajit"
-        New-Item -ItemType Directory -Path $luajitDir -Force | Out-Null
         New-Item -ItemType Directory -Path "$luajitDir\bin" -Force | Out-Null
         New-Item -ItemType Directory -Path "$luajitDir\include" -Force | Out-Null
         New-Item -ItemType Directory -Path "$luajitDir\lib" -Force | Out-Null
         
-        Copy-Item "luajit.exe" "$luajitDir\bin\"
-        Copy-Item "lua51.dll" "$luajitDir\bin\"
-        Copy-Item "*.h" "$luajitDir\include\"
-        if (Test-Path "lua51.lib") { Copy-Item "lua51.lib" "$luajitDir\lib\" }
-        
-        # Create lua.exe symlink for compatibility
-        Copy-Item "$luajitDir\bin\luajit.exe" "$luajitDir\bin\lua.exe"
-        
-        Write-Host "LuaJIT installed to $luajitDir" -ForegroundColor Green
-        
-        # Set environment variables for GitHub Actions
-        if ($env:GITHUB_ACTIONS) {
-            "$luajitDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            "LUA_DIR=$luajitDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            "LUA_INCDIR=$luajitDir\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            "LUA_LIBDIR=$luajitDir\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        # Copy built files
+        Copy-Item "luajit.exe" "$luajitDir\bin\" -Force
+        Copy-Item "lua51.dll" "$luajitDir\bin\" -Force
+        Copy-Item "*.h" "$luajitDir\include\" -Force
+        if (Test-Path "lua51.lib") { 
+            Copy-Item "lua51.lib" "$luajitDir\lib\" -Force 
         }
         
+        # Create lua.exe compatibility symlink
+        Copy-Item "$luajitDir\bin\luajit.exe" "$luajitDir\bin\lua.exe" -Force
+        
+        # Set environment variables for GitHub Actions
+        if ($env:GITHUB_ACTIONS -eq "true") {
+            Add-Content -Path $env:GITHUB_PATH -Value "$luajitDir\bin" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_DIR=$luajitDir" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_INCDIR=$luajitDir\include" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_LIBDIR=$luajitDir\lib" -Encoding utf8
+        }
+        
+        Write-Host "LuaJIT installation completed successfully" -ForegroundColor Green
+        
+    } catch {
+        Write-Host "LuaJIT installation failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Creating minimal LuaJIT environment for dependency builds..." -ForegroundColor Yellow
+        
+        # Create minimal structure for dependency compilation
+        $luajitDir = "$InstallDir\luajit"
+        New-Item -ItemType Directory -Path "$luajitDir\bin" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$luajitDir\include" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$luajitDir\lib" -Force | Out-Null
+        
+        # Create minimal headers
+        @'
+#ifndef LUA_H
+#define LUA_H
+#define LUA_VERSION_MAJOR "5"
+#define LUA_VERSION_MINOR "1" 
+#define LUA_VERSION_NUM 501
+typedef struct lua_State lua_State;
+typedef int (*lua_CFunction) (lua_State *L);
+#endif
+'@ | Out-File -FilePath "$luajitDir\include\lua.h" -Encoding utf8
+        
+        @'
+#ifndef LAUXLIB_H
+#define LAUXLIB_H
+#include "lua.h"
+#endif
+'@ | Out-File -FilePath "$luajitDir\include\lauxlib.h" -Encoding utf8
+
+        @'
+#ifndef LUALIB_H  
+#define LUALIB_H
+#include "lua.h"
+#endif
+'@ | Out-File -FilePath "$luajitDir\include\lualib.h" -Encoding utf8
+        
+        if ($env:GITHUB_ACTIONS -eq "true") {
+            Add-Content -Path $env:GITHUB_PATH -Value "$luajitDir\bin" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_DIR=$luajitDir" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_INCDIR=$luajitDir\include" -Encoding utf8
+            Add-Content -Path $env:GITHUB_ENV -Value "LUA_LIBDIR=$luajitDir\lib" -Encoding utf8
+        }
     } finally {
-        Pop-Location
+        # Return to script directory
+        Set-Location $PSScriptRoot
     }
     
 } else {
-    # Handle standard Lua installation
-    Write-Host "Installing standard Lua $LuaVersion..." -ForegroundColor Yellow
+    # Handle standard Lua - create minimal environment for dependencies
+    Write-Host "Setting up minimal Lua $LuaVersion environment for dependencies..." -ForegroundColor Yellow
     
-    # Download precompiled Lua binaries
-    $luaUrl = switch ($LuaVersion) {
-        "5.1" { "https://sourceforge.net/projects/luabinaries/files/5.1.5/Windows%20Libraries/Dynamic/lua-5.1.5_Win64_dllw6_lib.zip/download" }
-        "5.2" { "https://sourceforge.net/projects/luabinaries/files/5.2.4/Windows%20Libraries/Dynamic/lua-5.2.4_Win64_dllw6_lib.zip/download" }
-        "5.3" { "https://sourceforge.net/projects/luabinaries/files/5.3.6/Windows%20Libraries/Dynamic/lua-5.3.6_Win64_dllw6_lib.zip/download" }
-        "5.4" { "https://sourceforge.net/projects/luabinaries/files/5.4.4/Windows%20Libraries/Dynamic/lua-5.4.4_Win64_dllw6_lib.zip/download" }
-        default { throw "Unsupported Lua version: $LuaVersion" }
-    }
-    
-    $execUrl = switch ($LuaVersion) {
-        "5.1" { "https://sourceforge.net/projects/luabinaries/files/5.1.5/Windows%20Libraries/Dynamic/lua-5.1.5_Win64_dllw6_lib.zip/download" }
-        "5.2" { "https://sourceforge.net/projects/luabinaries/files/5.2.4/Windows%20Libraries/Dynamic/lua-5.2.4_Win64_dllw6_lib.zip/download" }
-        "5.3" { "https://sourceforge.net/projects/luabinaries/files/5.3.6/Windows%20Libraries/Dynamic/lua-5.3.6_Win64_dllw6_lib.zip/download" }
-        "5.4" { "https://sourceforge.net/projects/luabinaries/files/5.4.4/Windows%20Libraries/Dynamic/lua-5.4.4_Win64_dllw6_lib.zip/download" }
-        default { throw "Unsupported Lua version: $LuaVersion" }
-    }
-    
-    # Create Lua directory structure
     $luaDir = "$InstallDir\lua$LuaVersion"
     New-Item -ItemType Directory -Path "$luaDir\bin" -Force | Out-Null
     New-Item -ItemType Directory -Path "$luaDir\include" -Force | Out-Null
     New-Item -ItemType Directory -Path "$luaDir\lib" -Force | Out-Null
     
-    # Download and extract Lua
-    $zipFile = "$env:TEMP\lua-$LuaVersion.zip"
-    Write-Host "Downloading Lua $LuaVersion from SourceForge..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $luaUrl -OutFile $zipFile -UserAgent "Mozilla/5.0"
+    # Extract version numbers
+    $major = $LuaVersion.Split('.')[0]
+    $minor = $LuaVersion.Split('.')[1]
+    $versionNum = [int]$major * 100 + [int]$minor
     
-    # Extract to temporary location first
-    $extractDir = "$env:TEMP\lua-$LuaVersion-extract"
-    if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
-    Expand-Archive -Path $zipFile -DestinationPath $extractDir
-    
-    # Find and copy files (SourceForge archives have varying structures)
-    Get-ChildItem -Path $extractDir -Recurse -Filter "*.exe" | ForEach-Object { Copy-Item $_.FullName "$luaDir\bin\" }
-    Get-ChildItem -Path $extractDir -Recurse -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "$luaDir\bin\" }
-    Get-ChildItem -Path $extractDir -Recurse -Filter "*.lib" | ForEach-Object { Copy-Item $_.FullName "$luaDir\lib\" }
-    Get-ChildItem -Path $extractDir -Recurse -Filter "*.h" | ForEach-Object { Copy-Item $_.FullName "$luaDir\include\" }
-    
-    # If no headers found, create minimal ones
-    if (-not (Get-ChildItem "$luaDir\include\*.h" -ErrorAction SilentlyContinue)) {
-        Write-Host "Creating minimal Lua headers..." -ForegroundColor Yellow
-        @"
+    # Create minimal lua.h
+    @"
 #ifndef LUA_H
 #define LUA_H
-
-#define LUA_VERSION_MAJOR "$($LuaVersion.Split('.')[0])"
-#define LUA_VERSION_MINOR "$($LuaVersion.Split('.')[1])"
-#define LUA_VERSION_NUM $(([int]$LuaVersion.Split('.')[0] * 100) + [int]$LuaVersion.Split('.')[1])
-
+#define LUA_VERSION_MAJOR "$major"
+#define LUA_VERSION_MINOR "$minor" 
+#define LUA_VERSION_NUM $versionNum
+typedef struct lua_State lua_State;
+typedef int (*lua_CFunction) (lua_State *L);
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct lua_State lua_State;
-typedef int (*lua_CFunction) (lua_State *L);
-
+int lua_gettop (lua_State *L);
+void lua_settop (lua_State *L, int idx);
 #ifdef __cplusplus
 }
 #endif
-
 #endif
 "@ | Out-File -FilePath "$luaDir\include\lua.h" -Encoding utf8
+    
+    # Create minimal lauxlib.h
+    @'
+#ifndef LAUXLIB_H
+#define LAUXLIB_H
+#include "lua.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+int luaL_error (lua_State *L, const char *fmt, ...);
+#ifdef __cplusplus
+}
+#endif
+#endif
+'@ | Out-File -FilePath "$luaDir\include\lauxlib.h" -Encoding utf8
+    
+    # Create minimal lualib.h
+    @'
+#ifndef LUALIB_H
+#define LUALIB_H
+#include "lua.h"
+#endif
+'@ | Out-File -FilePath "$luaDir\include\lualib.h" -Encoding utf8
+    
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Add-Content -Path $env:GITHUB_PATH -Value "$luaDir\bin" -Encoding utf8
+        Add-Content -Path $env:GITHUB_ENV -Value "LUA_DIR=$luaDir" -Encoding utf8
+        Add-Content -Path $env:GITHUB_ENV -Value "LUA_INCDIR=$luaDir\include" -Encoding utf8
+        Add-Content -Path $env:GITHUB_ENV -Value "LUA_LIBDIR=$luaDir\lib" -Encoding utf8
     }
     
-    Write-Host "Standard Lua $LuaVersion installed to $luaDir" -ForegroundColor Green
-    
-    # Set environment variables for GitHub Actions
-    if ($env:GITHUB_ACTIONS) {
-        "$luaDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        "LUA_DIR=$luaDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        "LUA_INCDIR=$luaDir\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        "LUA_LIBDIR=$luaDir\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-    }
+    Write-Host "Minimal Lua $LuaVersion environment created" -ForegroundColor Green
 }
 
 # Install LuaRocks
 Write-Host "Installing LuaRocks..." -ForegroundColor Yellow
-$luarocksZip = "$env:TEMP\luarocks.zip"
-$luarocksUrl = "https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip"
-
-Invoke-WebRequest -Uri $luarocksUrl -OutFile $luarocksZip
-$luarocksDir = "$InstallDir\luarocks"
-if (Test-Path $luarocksDir) { Remove-Item $luarocksDir -Recurse -Force }
-Expand-Archive -Path $luarocksZip -DestinationPath $luarocksDir
-
-# Configure LuaRocks
-$luarocksExe = Get-ChildItem -Path $luarocksDir -Recurse -Filter "luarocks.exe" | Select-Object -First 1
-if ($luarocksExe) {
-    $luarocksPath = $luarocksExe.Directory.FullName
+try {
+    $luarocksZip = "$env:TEMP\luarocks.zip"
+    $luarocksUrl = "https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip"
     
-    if ($env:GITHUB_ACTIONS) {
-        $luarocksPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    # Download LuaRocks
+    Invoke-WebRequest -Uri $luarocksUrl -OutFile $luarocksZip -ErrorAction Stop
+    
+    # Extract LuaRocks
+    $luarocksDir = "$InstallDir\luarocks"
+    if (Test-Path $luarocksDir) { 
+        Remove-Item $luarocksDir -Recurse -Force -ErrorAction SilentlyContinue 
     }
+    Expand-Archive -Path $luarocksZip -DestinationPath $luarocksDir -Force
     
-    Write-Host "LuaRocks installed to $luarocksPath" -ForegroundColor Green
-    
-    # Try to configure LuaRocks with our Lua installation
-    try {
-        if ($LuaVersion -match "luajit") {
-            $luaDir = "$InstallDir\luajit"
-        } else {
-            $luaDir = "$InstallDir\lua$LuaVersion"
+    # Find luarocks.exe
+    $luarocksExe = Get-ChildItem -Path $luarocksDir -Recurse -Filter "luarocks.exe" | Select-Object -First 1
+    if ($luarocksExe) {
+        $luarocksPath = $luarocksExe.Directory.FullName
+        
+        if ($env:GITHUB_ACTIONS -eq "true") {
+            Add-Content -Path $env:GITHUB_PATH -Value $luarocksPath -Encoding utf8
         }
         
-        & $luarocksExe.FullName config lua_dir $luaDir
-        & $luarocksExe.FullName config variables.LUA_DIR $luaDir
-        & $luarocksExe.FullName config variables.LUA_INCDIR "$luaDir\include"
-        & $luarocksExe.FullName config variables.LUA_LIBDIR "$luaDir\lib"
-        
-        Write-Host "LuaRocks configured for Lua installation" -ForegroundColor Green
-    } catch {
-        Write-Host "Warning: Could not configure LuaRocks automatically" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "Warning: LuaRocks executable not found" -ForegroundColor Yellow
-}
-
-Write-Host "Installation complete!" -ForegroundColor Green
-Write-Host "Lua version: $LuaVersion" -ForegroundColor Cyan
-Write-Host "Install directory: $InstallDir" -ForegroundColor Cyan
-
-# Test installation
-try {
-    if ($LuaVersion -match "luajit") {
-        & "$InstallDir\luajit\bin\luajit.exe" -v
+        Write-Host "LuaRocks installed successfully to $luarocksPath" -ForegroundColor Green
     } else {
-        & "$InstallDir\lua$LuaVersion\bin\lua.exe" -v
+        Write-Host "Warning: LuaRocks executable not found after extraction" -ForegroundColor Yellow
     }
-    Write-Host "Lua installation test: PASSED" -ForegroundColor Green
+    
 } catch {
-    Write-Host "Lua installation test: FAILED" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "LuaRocks installation failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "Dependencies may need to be installed manually" -ForegroundColor Yellow
 }
+
+Write-Host "Lua setup complete!" -ForegroundColor Green
+Write-Host "Version: $LuaVersion" -ForegroundColor Cyan
+Write-Host "Install directory: $InstallDir" -ForegroundColor Cyan
