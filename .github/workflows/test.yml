@@ -23,11 +23,21 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
     
-    - name: Setup Lua (standard versions and LuaJIT on Linux)
-      if: matrix.lua-version != 'luajit' || matrix.os == 'ubuntu-latest'
+    - name: Setup Lua (standard versions only)
+      if: matrix.lua-version != 'luajit'
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
+    
+    - name: Setup LuaJIT on Ubuntu (via apt)
+      if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y luajit libluajit-5.1-dev
+        # Create compatibility symlinks
+        sudo ln -sf $(which luajit) /usr/local/bin/lua
+        echo "LUA_DIR=/usr" >> $GITHUB_ENV
+        echo "LUA_INCDIR=/usr/include/luajit-2.1" >> $GITHUB_ENV
     
     - name: Setup LuaJIT on macOS (via Homebrew)
       if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
@@ -36,17 +46,37 @@ jobs:
         # Create symlinks for compatibility
         sudo ln -sf $(which luajit) /usr/local/bin/lua
         echo "$(dirname $(which luajit))" >> $GITHUB_PATH
+        echo "LUA_DIR=$(brew --prefix luajit)" >> $GITHUB_ENV
+        echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
-    - name: Setup LuaJIT on Windows (via Chocolatey)
+    - name: Setup LuaJIT on Windows (manual install)
       if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      shell: bash
       run: |
-        choco install luajit -y
-        # Add to PATH
-        echo "C:\ProgramData\chocolatey\lib\luajit\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        # Download and install LuaJIT manually since Chocolatey is unreliable
+        curl -L -o luajit.zip https://luajit.org/download/LuaJIT-2.1.0-beta3.zip
+        unzip luajit.zip
+        cd LuaJIT-2.1.0-beta3
+        # Use MSVC to build (setup by msvc-dev-cmd step)
+        cd src
+        ./msvcbuild.bat
+        mkdir -p /c/luajit
+        cp luajit.exe lua51.dll /c/luajit/
+        echo "/c/luajit" >> $GITHUB_PATH
+        echo "LUA_DIR=C:/luajit" >> $GITHUB_ENV
     
-    - name: Setup LuaRocks (standard installations and LuaJIT on Linux)
-      if: matrix.lua-version != 'luajit' || matrix.os == 'ubuntu-latest'
+    - name: Setup LuaRocks (standard installations only)
+      if: matrix.lua-version != 'luajit'
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+    
+    - name: Setup LuaRocks for LuaJIT on Ubuntu
+      if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get install -y luarocks
+        # Configure luarocks to work with luajit
+        sudo luarocks config lua_interpreter luajit
+        sudo luarocks config variables.LUA_DIR /usr
+        sudo luarocks config variables.LUA_INCDIR /usr/include/luajit-2.1
     
     - name: Setup LuaRocks for LuaJIT on macOS
       if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
@@ -54,16 +84,20 @@ jobs:
         brew install luarocks
         # Configure luarocks to work with luajit
         luarocks config lua_interpreter luajit
-        luarocks config variables.LUA_DIR /opt/homebrew/opt/luajit
-        luarocks config variables.LUA_INCDIR /opt/homebrew/opt/luajit/include/luajit-2.1
+        luarocks config variables.LUA_DIR $(brew --prefix luajit)
+        luarocks config variables.LUA_INCDIR $(brew --prefix luajit)/include/luajit-2.1
     
     - name: Setup LuaRocks for LuaJIT on Windows
       if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
+      shell: bash
       run: |
-        choco install luarocks -y
+        # Install LuaRocks manually for Windows
+        curl -L -o luarocks.zip https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip
+        unzip luarocks.zip -d /c/luarocks
+        echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
         # Configure luarocks to work with luajit
-        luarocks config lua_interpreter luajit
-        luarocks config variables.LUA_DIR "C:\ProgramData\chocolatey\lib\luajit\tools"
+        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config lua_interpreter luajit
+        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_DIR "C:/luajit"
     
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
