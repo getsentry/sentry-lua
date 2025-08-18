@@ -23,13 +23,32 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
     
-    - name: Setup Lua
+    - name: Setup Lua (standard versions)
+      if: matrix.lua-version != 'luajit' || matrix.os != 'macos-latest'
       uses: leafo/gh-actions-lua@v10
       with:
         luaVersion: ${{ matrix.lua-version }}
     
-    - name: Setup LuaRocks
+    - name: Setup LuaJIT on macOS (via Homebrew)
+      if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
+      run: |
+        brew install luajit
+        # Create symlinks for compatibility
+        sudo ln -sf $(which luajit) /usr/local/bin/lua
+        echo "$(dirname $(which luajit))" >> $GITHUB_PATH
+    
+    - name: Setup LuaRocks (standard installations)
+      if: matrix.lua-version != 'luajit' || matrix.os != 'macos-latest'
       uses: leafo/gh-actions-luarocks@v4
+    
+    - name: Setup LuaRocks for LuaJIT on macOS
+      if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
+      run: |
+        brew install luarocks
+        # Configure luarocks to work with luajit
+        luarocks config lua_interpreter luajit
+        luarocks config variables.LUA_DIR /opt/homebrew/opt/luajit
+        luarocks config variables.LUA_INCDIR /opt/homebrew/opt/luajit/include/luajit-2.1
     
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
