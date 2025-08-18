@@ -67,12 +67,15 @@ install:
 	luarocks install tl
 	luarocks install lua-cjson
 	luarocks install luasocket
-	luarocks install tealdoc
 	luarocks install luacov
 	luarocks install luacov-reporter-lcov
 
+# Install all dependencies including docs tools
+install-all: install
+	luarocks install tealdoc
+
 # Generate documentation
-docs: build
+docs: build install-all
 	mkdir -p docs
 	tealdoc html -o docs --all src/sentry/*.tl src/sentry/core/*.tl src/sentry/utils/*.tl src/sentry/platforms/**/*.tl
 
