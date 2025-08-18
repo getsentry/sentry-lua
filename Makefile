@@ -36,6 +36,7 @@ install:
 	luarocks install tl
 	luarocks install lua-cjson
 	luarocks install luasocket
+	luarocks install luasec
 	luarocks install luacov
 	luarocks install luacov-reporter-lcov
 
