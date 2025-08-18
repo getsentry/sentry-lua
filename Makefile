@@ -3,44 +3,14 @@
 # Build Teal files to Lua
 build:
 	rm -rf build/
-	mkdir -p build/sentry/{core,utils,platforms/{standard,roblox,love2d,nginx,redis,defold,test}}
-	tl gen src/sentry/version.tl -o build/sentry/version.lua
-	tl gen src/sentry/utils/stacktrace.tl -o build/sentry/utils/stacktrace.lua
-	tl gen src/sentry/utils/serialize.tl -o build/sentry/utils/serialize.lua
-	tl gen src/sentry/utils/dsn.tl -o build/sentry/utils/dsn.lua
-	tl gen src/sentry/utils/os.tl -o build/sentry/utils/os.lua
-	tl gen src/sentry/utils/runtime.tl -o build/sentry/utils/runtime.lua
-	tl gen src/sentry/utils/transport.tl -o build/sentry/utils/transport.lua
-	tl gen src/sentry/utils/json.tl -o build/sentry/utils/json.lua
-	tl gen src/sentry/utils/http.tl -o build/sentry/utils/http.lua
-	tl gen src/sentry/core/context.tl -o build/sentry/core/context.lua
-	tl gen src/sentry/core/scope.tl -o build/sentry/core/scope.lua
-	tl gen src/sentry/core/transport.tl -o build/sentry/core/transport.lua
-	tl gen src/sentry/core/test_transport.tl -o build/sentry/core/test_transport.lua
-	tl gen src/sentry/core/file_io.tl -o build/sentry/core/file_io.lua
-	tl gen src/sentry/core/file_transport.tl -o build/sentry/core/file_transport.lua
-	tl gen src/sentry/core/auto_transport.tl -o build/sentry/core/auto_transport.lua
-	tl gen src/sentry/core/client.tl -o build/sentry/core/client.lua
-	tl gen src/sentry/types.tl -o build/sentry/types.lua
-	tl gen src/sentry/platform_loader.tl -o build/sentry/platform_loader.lua
-	tl gen src/sentry/init.tl -o build/sentry/init.lua
-	# Platform-specific modules
-	tl gen src/sentry/platforms/standard/os_detection.tl -o build/sentry/platforms/standard/os_detection.lua
-	tl gen src/sentry/platforms/standard/transport.tl -o build/sentry/platforms/standard/transport.lua
-	tl gen src/sentry/platforms/standard/file_transport.tl -o build/sentry/platforms/standard/file_transport.lua
-	tl gen src/sentry/platforms/roblox/os_detection.tl -o build/sentry/platforms/roblox/os_detection.lua
-	tl gen src/sentry/platforms/roblox/transport.tl -o build/sentry/platforms/roblox/transport.lua
-	tl gen src/sentry/platforms/roblox/context.tl -o build/sentry/platforms/roblox/context.lua
-	tl gen src/sentry/platforms/roblox/file_io.tl -o build/sentry/platforms/roblox/file_io.lua
-	tl gen src/sentry/platforms/love2d/os_detection.tl -o build/sentry/platforms/love2d/os_detection.lua
-	tl gen src/sentry/platforms/love2d/transport.tl -o build/sentry/platforms/love2d/transport.lua
-	tl gen src/sentry/platforms/love2d/context.tl -o build/sentry/platforms/love2d/context.lua
-	tl gen src/sentry/platforms/nginx/os_detection.tl -o build/sentry/platforms/nginx/os_detection.lua
-	tl gen src/sentry/platforms/nginx/transport.tl -o build/sentry/platforms/nginx/transport.lua
-	tl gen src/sentry/platforms/redis/transport.tl -o build/sentry/platforms/redis/transport.lua
-	tl gen src/sentry/platforms/defold/transport.tl -o build/sentry/platforms/defold/transport.lua
-	tl gen src/sentry/platforms/defold/file_io.tl -o build/sentry/platforms/defold/file_io.lua
-	tl gen src/sentry/platforms/test/transport.tl -o build/sentry/platforms/test/transport.lua
+	@echo "Creating build directories..."
+	@find src/sentry -type d | sed 's|src/sentry|build/sentry|' | xargs mkdir -p
+	@echo "Compiling Teal files..."
+	@find src/sentry -name "*.tl" -type f | while read -r tl_file; do \
+		lua_file=$$(echo "$$tl_file" | sed 's|src/sentry|build/sentry|' | sed 's|\.tl$$|.lua|'); \
+		echo "Compiling $$tl_file -> $$lua_file"; \
+		tl gen "$$tl_file" -o "$$lua_file"; \
+	done
 
 # Run unit tests
 test: build

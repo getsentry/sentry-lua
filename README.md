@@ -25,7 +25,7 @@ A comprehensive, platform-agnostic Sentry SDK for Lua environments. Written in T
 
 ### LuaRocks
 ```bash
-luarocks install sentry-lua
+luarocks install sentry/sentry
 ```
 
 ### Roblox
