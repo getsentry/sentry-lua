@@ -28,6 +28,7 @@ Central reference point for all LDK memory files.
 ## Documentation and Contribution
 
 @.claude/memories/contributing-sync.md - CONTRIBUTING.md and CI workflow synchronization: system dependencies, build requirements, platform matrix, and sync verification checklist
+@.claude/memories/github-actions-security.md - GitHub Actions security: always use commit SHAs instead of version tags, with proper version comments for maintenance
 
 ## Usage
 
