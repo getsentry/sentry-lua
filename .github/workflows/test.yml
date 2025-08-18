@@ -54,10 +54,10 @@ jobs:
       shell: cmd
       run: |
         curl -L -o luajit.zip https://luajit.org/download/LuaJIT-2.1.0-beta3.zip
-        unzip luajit.zip
+        tar -xf luajit.zip
         cd LuaJIT-2.1.0-beta3\src
-        msvcbuild.bat
-        mkdir C:\luajit
+        call msvcbuild.bat
+        if not exist C:\luajit mkdir C:\luajit
         copy luajit.exe C:\luajit\
         copy lua51.dll C:\luajit\
         echo C:\luajit>>%GITHUB_PATH%
@@ -80,10 +80,12 @@ jobs:
       if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get install -y luarocks
+        # Create user config directory
+        mkdir -p ~/.luarocks
         # Configure luarocks to work with luajit
-        luarocks config lua_interpreter luajit
-        luarocks config variables.LUA_DIR /usr
-        luarocks config variables.LUA_INCDIR /usr/include/luajit-2.1
+        luarocks config --local lua_interpreter luajit
+        luarocks config --local variables.LUA_DIR /usr
+        luarocks config --local variables.LUA_INCDIR /usr/include/luajit-2.1
     
     - name: Setup LuaRocks for LuaJIT on macOS
       if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
@@ -123,6 +125,21 @@ jobs:
       run: |
         # Windows should have SSL support built-in with recent Lua builds
         echo "SSL dependencies handled by system"
+    
+    - name: Install Teal compiler (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        # Install Teal globally using luarocks
+        if [ "${{ matrix.lua-version }}" = "luajit" ]; then
+          /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe install tl
+        else
+          luarocks install tl
+        fi
+        # Add luarocks bin to PATH for tl executable
+        echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
+        # For Windows, luarocks installs to different location
+        echo "/c/luarocks/luarocks-3.8.0-windows-64/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
       run: make install
