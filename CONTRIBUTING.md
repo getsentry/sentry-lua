@@ -26,7 +26,7 @@ MSVC build tools are automatically configured in CI for Lua compilation.
 
 ### Lua Environment
 
-- **Lua 5.4** (required)
+- **Lua 5.1, 5.2, 5.3, 5.4 or LuaJIT** (all versions supported)
 - **LuaRocks** (package manager)
 
 ### Development Dependencies
@@ -203,6 +203,10 @@ The CI runs on:
 - **Ubuntu Latest** (Linux)
 - **macOS Latest**  
 - **Windows Latest**
+
+With Lua versions:
+- **Lua 5.1, 5.2, 5.3, 5.4**
+- **LuaJIT**
 
 ### CI Requirements
 

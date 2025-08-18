@@ -1,5 +1,6 @@
 # Sentry SDK for Lua
 
+[![Tests](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml/badge.svg)](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/getsentry/sentry-lua/branch/main/graph/badge.svg)](https://codecov.io/gh/getsentry/sentry-lua)
 
 A comprehensive, platform-agnostic Sentry SDK for Lua environments. Written in Teal Language for better type safety and developer experience.

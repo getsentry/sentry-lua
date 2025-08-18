@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        lua-version: ["5.4"]
+        lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit"]
     
     runs-on: ${{ matrix.os }}
     
@@ -70,12 +70,12 @@ jobs:
       shell: bash
       run: make test
     
-    - name: Upload coverage to Codecov (Linux only)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Upload coverage to Codecov (Ubuntu Lua 5.4 only)
+      if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.info
         flags: unittests
-        name: codecov-umbrella
+        name: codecov-${{ matrix.lua-version }}
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}

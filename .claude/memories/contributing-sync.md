@@ -30,7 +30,7 @@ export OPENSSL_DIR=$(brew --prefix openssl)
 - MSVC build tools (ilammy/msvc-dev-cmd@v1) - setup before Lua installation
 
 #### Lua Environment
-- **Version**: Lua 5.4 (required)
+- **Versions**: Lua 5.1, 5.2, 5.3, 5.4, LuaJIT (all supported)
 - **Package Manager**: LuaRocks
 
 #### LuaRocks Dependencies (must match Makefile install target)
@@ -51,9 +51,13 @@ export OPENSSL_DIR=$(brew --prefix openssl)
 - `make clean` - Clean build artifacts
 
 #### Platform Matrix
-- **Ubuntu Latest** - Full testing + coverage + Codecov
+- **Ubuntu Latest** - Full testing + coverage + Codecov (Lua 5.4 only)
 - **macOS Latest** - Full testing + coverage
 - **Windows Latest** - Basic testing only (no coverage)
+
+#### Lua Version Matrix
+- **Lua 5.1, 5.2, 5.3, 5.4** - Standard Lua versions
+- **LuaJIT** - Just-in-Time compiler
 
 ## Update Process
 
