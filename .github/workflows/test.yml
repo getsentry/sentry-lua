@@ -51,32 +51,39 @@ jobs:
     
     - name: Setup LuaJIT on Windows (manual install)
       if: matrix.lua-version == 'luajit' && matrix.os == 'windows-latest'
-      shell: bash
+      shell: cmd
       run: |
-        # Download and install LuaJIT manually since Chocolatey is unreliable
         curl -L -o luajit.zip https://luajit.org/download/LuaJIT-2.1.0-beta3.zip
         unzip luajit.zip
-        cd LuaJIT-2.1.0-beta3
-        # Use MSVC to build (setup by msvc-dev-cmd step)
-        cd src
-        ./msvcbuild.bat
-        mkdir -p /c/luajit
-        cp luajit.exe lua51.dll /c/luajit/
-        echo "/c/luajit" >> $GITHUB_PATH
-        echo "LUA_DIR=C:/luajit" >> $GITHUB_ENV
+        cd LuaJIT-2.1.0-beta3\src
+        msvcbuild.bat
+        mkdir C:\luajit
+        copy luajit.exe C:\luajit\
+        copy lua51.dll C:\luajit\
+        echo C:\luajit>>%GITHUB_PATH%
+        echo LUA_DIR=C:\luajit>>%GITHUB_ENV%
     
-    - name: Setup LuaRocks (standard installations only)
-      if: matrix.lua-version != 'luajit'
+    - name: Setup LuaRocks (Linux/macOS only)
+      if: matrix.lua-version != 'luajit' && matrix.os != 'windows-latest'
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+    
+    - name: Setup LuaRocks (Windows standard Lua)
+      if: matrix.lua-version != 'luajit' && matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        # Install LuaRocks manually for Windows
+        curl -L -o luarocks.zip https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip
+        unzip luarocks.zip -d /c/luarocks
+        echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
     
     - name: Setup LuaRocks for LuaJIT on Ubuntu
       if: matrix.lua-version == 'luajit' && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get install -y luarocks
         # Configure luarocks to work with luajit
-        sudo luarocks config lua_interpreter luajit
-        sudo luarocks config variables.LUA_DIR /usr
-        sudo luarocks config variables.LUA_INCDIR /usr/include/luajit-2.1
+        luarocks config lua_interpreter luajit
+        luarocks config variables.LUA_DIR /usr
+        luarocks config variables.LUA_INCDIR /usr/include/luajit-2.1
     
     - name: Setup LuaRocks for LuaJIT on macOS
       if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
