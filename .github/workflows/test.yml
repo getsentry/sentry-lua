@@ -62,10 +62,10 @@ jobs:
     
     - name: Setup Lua on Windows (custom script)
       if: matrix.os == 'windows-latest'
-      shell: cmd
+      shell: powershell
       run: |
-        echo Installing ${{ matrix.lua-version }} using custom script
-        call scripts\install-lua-windows.bat ${{ matrix.lua-version }}
+        Write-Host "Installing ${{ matrix.lua-version }} using custom PowerShell script"
+        .\scripts\install-lua-windows.ps1 -LuaVersion "${{ matrix.lua-version }}"
     
     - name: Setup LuaRocks (Linux/macOS only)
       if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
