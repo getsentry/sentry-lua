@@ -22,4 +22,4 @@ sentry-events.log
 .idea/
 *.swp
 *.swo
-*~
+test-results.xml

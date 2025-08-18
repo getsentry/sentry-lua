@@ -16,19 +16,25 @@ test: build
 
 # Run unit tests with coverage
 test-coverage: build
-	rm -f luacov.*.out
+	rm -f luacov.*.out test-results.xml
 	LUA_PATH="build/?.lua;build/?/init.lua;;" busted --coverage
 	luacov
+	@# Generate test results in JUnit XML format for codecov test analytics
+	LUA_PATH="build/?.lua;build/?/init.lua;;" busted --output=junit > test-results.xml
 
 # Generate coverage report in LCOV format for codecov
 coverage-report: test-coverage
-	cp luacov.report.out coverage.info
+	@# Try LCOV format first, fallback to copying luacov report if LCOV fails
+	@if ! lua -e "require('luacov.reporter.lcov').report()" > coverage.info 2>/dev/null; then \
+		echo "LCOV reporter failed, using luacov report format"; \
+		cp luacov.report.out coverage.info; \
+	fi
 	@echo "Coverage report generated in coverage.info"
 
 # Clean build artifacts
 clean:
 	rm -rf build/
-	rm -f luacov.*.out coverage.info
+	rm -f luacov.*.out coverage.info test-results.xml
 
 # Install dependencies
 install:

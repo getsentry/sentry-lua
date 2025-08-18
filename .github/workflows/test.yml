@@ -65,6 +65,17 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: make coverage-report
     
+    - name: Upload coverage artifacts (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-${{ matrix.os }}-lua${{ matrix.lua-version }}
+        path: |
+          coverage.info
+          luacov.report.out
+          test-results.xml
+        retention-days: 7
+    
     - name: Run tests (Windows)
       if: matrix.os == 'windows-latest'
       shell: bash
@@ -78,4 +89,11 @@ jobs:
         flags: unittests
         name: codecov-${{ matrix.lua-version }}
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+    
+    - name: Upload test results to Codecov (Ubuntu Lua 5.4 only)
+      if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
+      uses: codecov/test-results-action@v1
+      with:
+        file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
