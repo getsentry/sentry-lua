@@ -17,6 +17,7 @@ sudo apt-get install -y libssl-dev
 #### macOS
 ```bash
 brew install openssl
+export OPENSSL_DIR=$(brew --prefix openssl)
 ```
 
 #### Windows

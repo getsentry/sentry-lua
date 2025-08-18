@@ -36,7 +36,12 @@ install:
 	luarocks install tl
 	luarocks install lua-cjson
 	luarocks install luasocket
-	luarocks install luasec
+	@if [ -n "$$OPENSSL_DIR" ]; then \
+		echo "Installing luasec with OPENSSL_DIR=$$OPENSSL_DIR"; \
+		luarocks install luasec OPENSSL_DIR=$$OPENSSL_DIR; \
+	else \
+		luarocks install luasec; \
+	fi
 	luarocks install luacov
 	luarocks install luacov-reporter-lcov
 

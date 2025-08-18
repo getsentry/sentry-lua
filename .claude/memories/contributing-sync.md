@@ -22,11 +22,12 @@ sudo apt-get install -y libssl-dev
 **macOS:**
 ```bash
 brew install openssl
+export OPENSSL_DIR=$(brew --prefix openssl)
 ```
 
 **Windows:**
 - SSL support built-in
-- MSVC build tools (ilammy/msvc-dev-cmd@v1)
+- MSVC build tools (ilammy/msvc-dev-cmd@v1) - setup before Lua installation
 
 #### Lua Environment
 - **Version**: Lua 5.4 (required)
