@@ -1,5 +1,5 @@
 {
-   "name": "sentry-lua",
+   "name": "sentry",
    "version": "0.0.1",
    "description": "Sentry SDK for Roblox - Error tracking and monitoring",
    "author": "bruno-garcia",
