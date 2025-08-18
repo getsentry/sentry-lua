@@ -62,10 +62,13 @@ jobs:
         cd LuaJIT-${{ matrix.luajit-version }}\src
         call msvcbuild.bat
         if not exist C:\luajit mkdir C:\luajit
+        if not exist C:\luajit\include mkdir C:\luajit\include
         copy luajit.exe C:\luajit\
         copy lua51.dll C:\luajit\
+        copy *.h C:\luajit\include\
         echo C:\luajit>>%GITHUB_PATH%
         echo LUA_DIR=C:\luajit>>%GITHUB_ENV%
+        echo LUA_INCDIR=C:\luajit\include>>%GITHUB_ENV%
     
     - name: Setup LuaRocks (Linux/macOS only)
       if: matrix.lua-version != 'luajit' && matrix.os != 'windows-latest'
@@ -86,10 +89,12 @@ jobs:
         sudo apt-get install -y luarocks
         # Create user config directory
         mkdir -p ~/.luarocks
-        # Configure luarocks to work with luajit
+        # Configure luarocks to work with luajit using --local for all operations
         luarocks config --local lua_interpreter luajit
         luarocks config --local variables.LUA_DIR /usr
         luarocks config --local variables.LUA_INCDIR /usr/include/luajit-2.1
+        # Override make install to use --local flag
+        echo 'LUAROCKS_FLAGS=--local' >> $GITHUB_ENV
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on macOS
       if: matrix.lua-version == 'luajit' && matrix.os == 'macos-latest'
@@ -134,7 +139,18 @@ jobs:
       if: matrix.os == 'windows-latest'
       shell: bash
       run: |
-        # Install Teal globally using luarocks
+        # Configure Lua paths for LuaRocks on Windows
+        if [ "${{ matrix.lua-version }}" != "luajit" ]; then
+          # For standard Lua versions, configure proper header path
+          LUA_DIR=$(dirname $(which lua))
+          LUA_INCDIR="$LUA_DIR/../include"
+          echo "LUA_DIR=$LUA_DIR" >> $GITHUB_ENV
+          echo "LUA_INCDIR=$LUA_INCDIR" >> $GITHUB_ENV
+          luarocks config variables.LUA_DIR "$LUA_DIR"
+          luarocks config variables.LUA_INCDIR "$LUA_INCDIR"
+        fi
+        
+        # Install Teal using luarocks
         if [ "${{ matrix.lua-version }}" = "luajit" ]; then
           /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe install tl
         else
@@ -146,7 +162,28 @@ jobs:
         echo "/c/luarocks/luarocks-3.8.0-windows-64/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
-      run: make install
+      shell: bash
+      run: |
+        # For Ubuntu LuaJIT, use --local flag to avoid permission issues
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [ "${{ matrix.lua-version }}" = "luajit" ]; then
+          echo "Installing dependencies locally for Ubuntu LuaJIT..."
+          luarocks install --local busted
+          luarocks install --local tl
+          luarocks install --local lua-cjson
+          luarocks install --local luasocket
+          if [ -n "$OPENSSL_DIR" ]; then
+            echo "Installing luasec with OPENSSL_DIR=$OPENSSL_DIR"
+            luarocks install --local luasec OPENSSL_DIR=$OPENSSL_DIR
+          else
+            luarocks install --local luasec
+          fi
+          luarocks install --local luacov
+          luarocks install --local luacov-reporter-lcov
+          # Add local luarocks bin to PATH
+          echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
+        else
+          make install
+        fi
     
     - name: Build project (Linux/macOS)
       if: matrix.os != 'windows-latest'

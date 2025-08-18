@@ -3,7 +3,10 @@
 [![Tests](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml/badge.svg)](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/getsentry/sentry-lua/branch/main/graph/badge.svg)](https://codecov.io/gh/getsentry/sentry-lua)
 
-A comprehensive, platform-agnostic Sentry SDK for Lua environments. Written in Teal Language for better type safety and developer experience.
+A platform-agnostic Sentry SDK for Lua environments. Written in Teal Language for better type safety and developer experience.
+
+The goal of this SDK is to be *portable* Lua code, so CI/tests run on Standard Lua, as well as LuaJIT, which can run on [Game Consoles](https://luajit.org/status.html#consoles),
+one of [Sentry's latest platform investments](https://blog.sentry.io/playstation-xbox-switch-pc-or-mobile-wherever-youve-got-bugs-to-crush-sentry/).
 
 ## Features
 
