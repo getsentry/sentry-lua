@@ -17,6 +17,7 @@ docs/
 sentry-events.log
 
 # IDE and editor files
+.claude/settings.local.json
 .vscode/
 .idea/
 *.swp

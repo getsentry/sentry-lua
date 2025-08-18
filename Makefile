@@ -3,13 +3,11 @@
 # Build Teal files to Lua
 build:
 	rm -rf build/
-	@echo "Creating build directories..."
-	@find src/sentry -type d | sed 's|src/sentry|build/sentry|' | xargs mkdir -p
-	@echo "Compiling Teal files..."
-	@find src/sentry -name "*.tl" -type f | while read -r tl_file; do \
+	find src/sentry -type d | sed 's|src/sentry|build/sentry|' | xargs mkdir -p
+	find src/sentry -name "*.tl" -type f | while read -r tl_file; do \
 		lua_file=$$(echo "$$tl_file" | sed 's|src/sentry|build/sentry|' | sed 's|\.tl$$|.lua|'); \
 		echo "Compiling $$tl_file -> $$lua_file"; \
-		tl gen "$$tl_file" -o "$$lua_file"; \
+		tl gen "$$tl_file" -o "$$lua_file" || exit 1; \
 	done
 
 # Run unit tests
