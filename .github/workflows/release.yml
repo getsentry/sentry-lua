@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release
+        required: true
+      merge_target:
+        description: Target branch to merge into. Uses the default branch as a fallback (optional)
+        required: false
+      force:
+        description: Force a release even when there are release-blockers (optional)
+        required: false
+
+jobs:
+  job_release:
+    runs-on: ubuntu-latest
+    name: 'Release a new version: ${{ github.event.inputs.version }}'
+    steps:
+      - name: Get auth token
+        id: token
+        uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
+        with:
+          app-id: ${{ vars.SENTRY_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.SENTRY_RELEASE_BOT_PRIVATE_KEY }}
+      - name: Check out current commit (${{ github.sha }})
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Prepare release ${{ github.event.inputs.version }}
+        uses: getsentry/action-prepare-release@v1
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+        with:
+          version: ${{ github.event.inputs.version }}
+          force: ${{ github.event.inputs.force }}
+          merge_target: ${{ github.event.inputs.merge_target }}
