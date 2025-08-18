@@ -222,22 +222,29 @@ jobs:
           # Use the correct luarocks path for Windows
           if [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
             LUAROCKS="/c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe"
+            echo "Installing dependencies for LuaJIT..."
+            $LUAROCKS install busted
+            # tl is already installed in the Teal compiler step
+            $LUAROCKS install lua-cjson
+            $LUAROCKS install luasocket
+            $LUAROCKS install luasec
+            $LUAROCKS install luacov
+            $LUAROCKS install luacov-reporter-lcov
           else
             LUAROCKS="luarocks"
-            # Configure luarocks with the proper LUA_DIR and LUA_INCDIR for standard Lua
-            echo "Configuring luarocks for standard Lua with LUA_DIR=$LUA_DIR and LUA_INCDIR=$LUA_INCDIR"
-            luarocks config lua_dir "$LUA_DIR" || echo "Failed to configure lua_dir"
-            luarocks config variables.LUA_DIR "$LUA_DIR" || echo "Failed to configure variables.LUA_DIR"  
-            luarocks config variables.LUA_INCDIR "$LUA_INCDIR" || echo "Failed to configure variables.LUA_INCDIR"
+            echo "Installing dependencies for standard Lua with LUA_DIR=$LUA_DIR and LUA_INCDIR=$LUA_INCDIR"
+            # Try installing dependencies with explicit paths
+            $LUAROCKS install busted LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || {
+              echo "Failed with explicit paths, trying --local installation..."
+              $LUAROCKS install --local busted || echo "busted installation failed"
+            }
+            # tl is already installed in the Teal compiler step
+            $LUAROCKS install lua-cjson LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local lua-cjson
+            $LUAROCKS install luasocket LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luasocket
+            $LUAROCKS install luasec LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luasec
+            $LUAROCKS install luacov LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luacov
+            $LUAROCKS install luacov-reporter-lcov LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luacov-reporter-lcov
           fi
-          
-          $LUAROCKS install busted
-          # tl is already installed in the Teal compiler step
-          $LUAROCKS install lua-cjson
-          $LUAROCKS install luasocket
-          $LUAROCKS install luasec
-          $LUAROCKS install luacov
-          $LUAROCKS install luacov-reporter-lcov
         else
           make install
         fi
