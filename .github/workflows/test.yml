@@ -60,12 +60,28 @@ jobs:
         echo "LUA_DIR=$(brew --prefix luajit)" >> $GITHUB_ENV
         echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
-    - name: Setup Lua on Windows (custom script)
-      if: matrix.os == 'windows-latest'
+    - name: Setup Lua on Windows (via Chocolatey)
+      if: matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit')
       shell: powershell
       run: |
-        Write-Host "Installing ${{ matrix.lua-version }} using custom PowerShell script"
-        .\scripts\install-lua-windows.ps1 -LuaVersion "${{ matrix.lua-version }}"
+        $package = switch ("${{ matrix.lua-version }}") {
+          "5.1" { "lua51" }
+          "5.2" { "lua52" }
+          "5.3" { "lua53" }
+          "5.4" { "lua" }
+          default { "lua" }
+        }
+        Write-Host "Installing $package and LuaRocks via Chocolatey"
+        choco install $package -y
+        choco install luarocks -y
+    
+    - name: Setup LuaJIT on Windows (via Chocolatey)
+      if: matrix.os == 'windows-latest' && contains(matrix.lua-version, 'luajit')
+      shell: powershell
+      run: |
+        Write-Host "Installing LuaJIT and LuaRocks via Chocolatey"
+        choco install luajit -y
+        choco install luarocks -y
     
     - name: Setup LuaRocks (Linux/macOS only)
       if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
@@ -111,20 +127,6 @@ jobs:
         # Windows should have SSL support built-in with recent Lua builds
         echo "SSL dependencies handled by system"
     
-    - name: Install Teal compiler (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        # Try to install Teal using luarocks, with fallback to binary
-        if ! luarocks install tl 2>/dev/null; then
-          echo "Installing Teal binary as fallback..."
-          curl -L -o tl.zip "https://github.com/teal-language/tl/releases/latest/download/tl-windows.zip" || echo "Binary download failed"
-          if [[ -f tl.zip ]]; then
-            mkdir -p /c/teal-bin
-            unzip tl.zip -d /c/teal-bin/ || true
-            echo "/c/teal-bin" >> $GITHUB_PATH
-          fi
-        fi
     
     - name: Install dependencies
       shell: bash
@@ -148,13 +150,13 @@ jobs:
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
         elif [ "${{ matrix.os }}" = "windows-latest" ]; then
           echo "Installing dependencies for Windows using luarocks..."
-          # Try installing basic dependencies - our script should have configured luarocks
-          luarocks install busted || echo "busted installation failed"
-          luarocks install lua-cjson || echo "lua-cjson installation failed"  
-          luarocks install luasocket || echo "luasocket installation failed"
-          luarocks install luasec || echo "luasec installation failed"
-          luarocks install luacov || echo "luacov installation failed"
-          luarocks install luacov-reporter-lcov || echo "luacov-reporter-lcov installation failed"
+          luarocks install busted
+          luarocks install tl
+          luarocks install lua-cjson
+          luarocks install luasocket
+          luarocks install luasec
+          luarocks install luacov
+          luarocks install luacov-reporter-lcov
         else
           make install
         fi
