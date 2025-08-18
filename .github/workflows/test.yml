@@ -34,8 +34,8 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
     
-    - name: Setup Lua (standard versions only)
-      if: ${{ !contains(matrix.lua-version, 'luajit') }}
+    - name: Setup Lua (Linux/macOS standard versions)
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
@@ -60,35 +60,16 @@ jobs:
         echo "LUA_DIR=$(brew --prefix luajit)" >> $GITHUB_ENV
         echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
-    - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on Windows (manual install)
-      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest'
+    - name: Setup Lua on Windows (custom script)
+      if: matrix.os == 'windows-latest'
       shell: cmd
       run: |
-        echo Cloning LuaJIT version: ${{ matrix.luajit-version }}
-        git clone --depth 1 --branch ${{ matrix.luajit-version }} https://github.com/LuaJIT/LuaJIT.git luajit-src
-        cd luajit-src\src
-        call msvcbuild.bat
-        if not exist C:\luajit mkdir C:\luajit
-        if not exist C:\luajit\include mkdir C:\luajit\include
-        copy luajit.exe C:\luajit\
-        copy lua51.dll C:\luajit\
-        copy *.h C:\luajit\include\
-        echo C:\luajit>>%GITHUB_PATH%
-        echo LUA_DIR=C:\luajit>>%GITHUB_ENV%
-        echo LUA_INCDIR=C:\luajit\include>>%GITHUB_ENV%
+        echo Installing ${{ matrix.lua-version }} using custom script
+        call scripts\install-lua-windows.bat ${{ matrix.lua-version }}
     
     - name: Setup LuaRocks (Linux/macOS only)
       if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
-    
-    - name: Setup LuaRocks (Windows standard Lua)
-      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest' }}
-      shell: bash
-      run: |
-        # Install LuaRocks manually for Windows
-        curl -L -o luarocks.zip https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip
-        unzip luarocks.zip -d /c/luarocks
-        echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu
       if: contains(matrix.lua-version, 'luajit') && matrix.os == 'ubuntu-latest'
@@ -112,21 +93,6 @@ jobs:
         luarocks config variables.LUA_DIR $(brew --prefix luajit)
         luarocks config variables.LUA_INCDIR $(brew --prefix luajit)/include/luajit-2.1
     
-    - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Windows
-      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        # Install LuaRocks manually for Windows
-        curl -L -o luarocks.zip https://luarocks.github.io/luarocks/releases/luarocks-3.8.0-windows-64.zip
-        unzip luarocks.zip -d /c/luarocks
-        echo "/c/luarocks/luarocks-3.8.0-windows-64" >> $GITHUB_PATH
-        # Create luarocks config directory
-        mkdir -p "$HOME/AppData/Roaming/luarocks" || true
-        # Configure luarocks to work with luajit (with error handling)
-        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config lua_interpreter luajit || echo "Config lua_interpreter failed, continuing"
-        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_DIR "C:/luajit" || echo "Config LUA_DIR failed, continuing"
-        /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe config variables.LUA_INCDIR "C:/luajit/include" || echo "Config LUA_INCDIR failed, continuing"
-    
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -149,53 +115,16 @@ jobs:
       if: matrix.os == 'windows-latest'
       shell: bash
       run: |
-        # Configure Lua paths for LuaRocks on Windows
-        if [[ "${{ matrix.lua-version }}" != *"luajit"* ]]; then
-          # For standard Lua versions, find the installed Lua location
-          LUA_EXE=$(which lua.exe)
-          LUA_DIR=$(dirname "$LUA_EXE")
-          
-          # Look for include directory in common locations
-          if [[ -d "$LUA_DIR/include" ]]; then
-            LUA_INCDIR="$LUA_DIR/include"
-          elif [[ -d "$LUA_DIR/../include" ]]; then
-            LUA_INCDIR="$LUA_DIR/../include"
-          elif [[ -d "/c/tools/lua/include" ]]; then
-            LUA_INCDIR="/c/tools/lua/include"
-          else
-            # Use a reasonable default
-            LUA_INCDIR="$LUA_DIR/include"
-            mkdir -p "$LUA_INCDIR" || true
-          fi
-          
-          echo "LUA_DIR=$LUA_DIR" >> $GITHUB_ENV
-          echo "LUA_INCDIR=$LUA_INCDIR" >> $GITHUB_ENV
-          
-          # Configure luarocks to use these paths
-          luarocks config variables.LUA_DIR "$LUA_DIR" || true
-          luarocks config variables.LUA_INCDIR "$LUA_INCDIR" || true
-        fi
-        
-        # Install Teal using luarocks with fallback to binary distribution
-        if [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
-          /c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe install tl || echo "Teal installation failed for LuaJIT, will try at runtime"
-        else
-          # Try installing tl, if it fails due to missing headers, skip for now
-          if ! luarocks install tl; then
-            echo "Teal installation failed due to missing headers, will continue without pre-installed tl"
-            # Download tl binary directly as fallback
-            curl -L -o tl.zip https://github.com/teal-language/tl/releases/latest/download/tl-windows.zip || echo "Binary download failed"
-            if [[ -f tl.zip ]]; then
-              mkdir -p /c/teal-bin
-              unzip tl.zip -d /c/teal-bin/ || true
-              echo "/c/teal-bin" >> $GITHUB_PATH
-            fi
+        # Try to install Teal using luarocks, with fallback to binary
+        if ! luarocks install tl 2>/dev/null; then
+          echo "Installing Teal binary as fallback..."
+          curl -L -o tl.zip "https://github.com/teal-language/tl/releases/latest/download/tl-windows.zip" || echo "Binary download failed"
+          if [[ -f tl.zip ]]; then
+            mkdir -p /c/teal-bin
+            unzip tl.zip -d /c/teal-bin/ || true
+            echo "/c/teal-bin" >> $GITHUB_PATH
           fi
         fi
-        
-        # Add luarocks bin to PATH for tl executable
-        echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
-        echo "/c/luarocks/luarocks-3.8.0-windows-64/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
       shell: bash
@@ -218,33 +147,14 @@ jobs:
           # Add local luarocks bin to PATH
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
         elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "Installing dependencies for Windows..."
-          # Use the correct luarocks path for Windows
-          if [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
-            LUAROCKS="/c/luarocks/luarocks-3.8.0-windows-64/luarocks.exe"
-            echo "Installing dependencies for LuaJIT..."
-            $LUAROCKS install busted
-            # tl is already installed in the Teal compiler step
-            $LUAROCKS install lua-cjson
-            $LUAROCKS install luasocket
-            $LUAROCKS install luasec
-            $LUAROCKS install luacov
-            $LUAROCKS install luacov-reporter-lcov
-          else
-            LUAROCKS="luarocks"
-            echo "Installing dependencies for standard Lua with LUA_DIR=$LUA_DIR and LUA_INCDIR=$LUA_INCDIR"
-            # Try installing dependencies with explicit paths
-            $LUAROCKS install busted LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || {
-              echo "Failed with explicit paths, trying --local installation..."
-              $LUAROCKS install --local busted || echo "busted installation failed"
-            }
-            # tl is already installed in the Teal compiler step
-            $LUAROCKS install lua-cjson LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local lua-cjson
-            $LUAROCKS install luasocket LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luasocket
-            $LUAROCKS install luasec LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luasec
-            $LUAROCKS install luacov LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luacov
-            $LUAROCKS install luacov-reporter-lcov LUA_DIR="$LUA_DIR" LUA_INCDIR="$LUA_INCDIR" || $LUAROCKS install --local luacov-reporter-lcov
-          fi
+          echo "Installing dependencies for Windows using luarocks..."
+          # Try installing basic dependencies - our script should have configured luarocks
+          luarocks install busted || echo "busted installation failed"
+          luarocks install lua-cjson || echo "lua-cjson installation failed"  
+          luarocks install luasocket || echo "luasocket installation failed"
+          luarocks install luasec || echo "luasec installation failed"
+          luarocks install luacov || echo "luacov installation failed"
+          luarocks install luacov-reporter-lcov || echo "luacov-reporter-lcov installation failed"
         else
           make install
         fi
