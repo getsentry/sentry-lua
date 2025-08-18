@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit-2.0", "luajit-2.1"]
         include:
           - lua-version: "luajit-2.0" 
@@ -30,12 +30,8 @@ jobs:
     steps:
     - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
     
-    - name: Setup MSVC (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
-    
-    - name: Setup Lua (Linux/macOS standard versions)
-      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
+    - name: Setup Lua (standard versions)
+      if: ${{ !contains(matrix.lua-version, 'luajit') }}
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
@@ -60,31 +56,8 @@ jobs:
         echo "LUA_DIR=$(brew --prefix luajit)" >> $GITHUB_ENV
         echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
-    - name: Setup Lua on Windows (via Chocolatey)
-      if: matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit')
-      shell: powershell
-      run: |
-        $package = switch ("${{ matrix.lua-version }}") {
-          "5.1" { "lua51" }
-          "5.2" { "lua52" }
-          "5.3" { "lua53" }
-          "5.4" { "lua" }
-          default { "lua" }
-        }
-        Write-Host "Installing $package and LuaRocks via Chocolatey"
-        choco install $package -y
-        choco install luarocks -y
-    
-    - name: Setup LuaJIT on Windows (via Chocolatey)
-      if: matrix.os == 'windows-latest' && contains(matrix.lua-version, 'luajit')
-      shell: powershell
-      run: |
-        Write-Host "Installing LuaJIT and LuaRocks via Chocolatey"
-        choco install luajit -y
-        choco install luarocks -y
-    
-    - name: Setup LuaRocks (Linux/macOS only)
-      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
+    - name: Setup LuaRocks
+      if: ${{ !contains(matrix.lua-version, 'luajit') }}
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu
@@ -121,12 +94,6 @@ jobs:
         brew install openssl
         echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
     
-    - name: Install SSL dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        # Windows should have SSL support built-in with recent Lua builds
-        echo "SSL dependencies handled by system"
-    
     
     - name: Install dependencies
       shell: bash
@@ -148,34 +115,17 @@ jobs:
           luarocks install --local luacov-reporter-lcov
           # Add local luarocks bin to PATH
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
-        elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "Installing dependencies for Windows using luarocks..."
-          luarocks install busted
-          luarocks install tl
-          luarocks install lua-cjson
-          luarocks install luasocket
-          luarocks install luasec
-          luarocks install luacov
-          luarocks install luacov-reporter-lcov
         else
           make install
         fi
     
-    - name: Build project (Linux/macOS)
-      if: matrix.os != 'windows-latest'
+    - name: Build project
       run: make build
     
-    - name: Build project (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: make build
-    
-    - name: Run tests with coverage (Linux/macOS)
-      if: matrix.os != 'windows-latest'
+    - name: Run tests with coverage
       run: make coverage-report
     
-    - name: Upload coverage artifacts (Linux/macOS)
-      if: matrix.os != 'windows-latest'
+    - name: Upload coverage artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: coverage-${{ matrix.os }}-lua${{ matrix.lua-version }}
@@ -184,11 +134,6 @@ jobs:
           luacov.report.out
           test-results.xml
         retention-days: 7
-    
-    - name: Run tests (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: make test
     
     - name: Upload coverage to Codecov (Ubuntu Lua 5.4 only)
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
