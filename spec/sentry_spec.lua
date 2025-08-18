@@ -60,13 +60,19 @@ describe("Sentry SDK", function()
       
       it("should set user context", function()
          sentry.set_user({id = "123", email = "test@example.com"})
-         -- Test would verify user is set in next event
+         
+         -- Capture message should succeed
+         local event_id = sentry.capture_message("Test user context")
+         assert.is_not_nil(event_id)
       end)
       
       it("should set tags", function()
          sentry.set_tag("environment", "test")
          sentry.set_tag("version", "0.0.1")
-         -- Test would verify tags are included in next event
+         
+         -- Capture message should succeed
+         local event_id = sentry.capture_message("Test tags")
+         assert.is_not_nil(event_id)
       end)
       
       it("should add breadcrumbs", function()
@@ -75,7 +81,10 @@ describe("Sentry SDK", function()
             category = "ui",
             level = "info"
          })
-         -- Test would verify breadcrumb is included in next event
+         
+         -- Capture message should succeed
+         local event_id = sentry.capture_message("Test breadcrumbs")
+         assert.is_not_nil(event_id)
       end)
    end)
    
@@ -90,12 +99,18 @@ describe("Sentry SDK", function()
       it("should isolate scope changes", function()
          sentry.set_tag("global", "value")
          
+         local scoped_event_id
          sentry.with_scope(function(scope)
             scope:set_tag("scoped", "temporary")
-            -- Within scope: should have both tags
+            scoped_event_id = sentry.capture_message("Scoped message")
          end)
          
-         -- Outside scope: should only have global tag
+         -- Verify scoped message was captured
+         assert.is_not_nil(scoped_event_id)
+         
+         -- Capture another message outside scope
+         local global_event_id = sentry.capture_message("Global message")
+         assert.is_not_nil(global_event_id)
       end)
    end)
 end)

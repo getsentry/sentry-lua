@@ -2,10 +2,23 @@ build/
 *.lua
 !tlconfig.lua
 !spec/*.lua
+
+# Coverage files
 .luacov
 luacov.stats.out
 luacov.report.out
+coverage.info
+*.lcov
+
+# Dependencies and artifacts
 node_modules/
 .DS_Store
 docs/
 sentry-events.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -1,4 +1,4 @@
-.PHONY: build test clean install docs
+.PHONY: build test test-coverage coverage-report clean install docs
 
 # Build Teal files to Lua
 build:
@@ -45,9 +45,21 @@ build:
 test: build
 	busted
 
+# Run unit tests with coverage
+test-coverage: build
+	rm -f luacov.*.out
+	LUA_PATH="build/?.lua;build/?/init.lua;;" busted --coverage
+	luacov
+
+# Generate coverage report in LCOV format for codecov
+coverage-report: test-coverage
+	cp luacov.report.out coverage.info
+	@echo "Coverage report generated in coverage.info"
+
 # Clean build artifacts
 clean:
 	rm -rf build/
+	rm -f luacov.*.out coverage.info
 
 # Install dependencies
 install:
@@ -56,6 +68,8 @@ install:
 	luarocks install lua-cjson
 	luarocks install luasocket
 	luarocks install tealdoc
+	luarocks install luacov
+	luarocks install luacov-reporter-lcov
 
 # Generate documentation
 docs: build
