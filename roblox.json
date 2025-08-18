@@ -1,0 +1,24 @@
+{
+   "name": "sentry-lua",
+   "version": "0.0.1",
+   "description": "Sentry SDK for Roblox - Error tracking and monitoring",
+   "author": "bruno-garcia",
+   "license": "MIT",
+   "main": "src/sentry/init.lua",
+   "files": [
+      "src/**/*.lua",
+      "LICENSE",
+      "README.md"
+   ],
+   "keywords": [
+      "sentry",
+      "error-tracking",
+      "monitoring",
+      "roblox",
+      "lua"
+   ],
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/bruno-garcia/sentry-lua.git"
+   }
+}

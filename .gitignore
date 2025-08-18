@@ -1,0 +1,10 @@
+build/
+*.lua
+!tlconfig.lua
+!spec/*.lua
+.luacov
+luacov.stats.out
+luacov.report.out
+node_modules/
+.DS_Store
+docs/

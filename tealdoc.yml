@@ -1,0 +1,41 @@
+project_name: "Sentry Lua SDK"
+project_version: "0.0.1"
+source_dir: "src"
+output_dir: "docs"
+title: "Sentry SDK for Lua Documentation"
+description: "Platform-agnostic Sentry SDK for Lua environments"
+
+modules:
+  - name: "sentry"
+    path: "src/sentry/init.tl"
+    description: "Main Sentry SDK interface"
+  
+  - name: "sentry.core.client"
+    path: "src/sentry/core/client.tl"
+    description: "Core client implementation"
+  
+  - name: "sentry.core.transport"
+    path: "src/sentry/core/transport.tl"
+    description: "Event transport abstraction"
+  
+  - name: "sentry.core.context"
+    path: "src/sentry/core/context.tl"
+    description: "Context and breadcrumb management"
+  
+  - name: "sentry.utils.stacktrace"
+    path: "src/sentry/utils/stacktrace.tl"
+    description: "Stack trace utilities"
+  
+  - name: "sentry.utils.serialize"
+    path: "src/sentry/utils/serialize.tl"
+    description: "Event serialization utilities"
+
+examples:
+  - name: "Basic Usage"
+    file: "examples/basic.lua"
+  
+  - name: "Redis Integration"
+    file: "examples/redis.lua"
+  
+  - name: "nginx Integration"
+    file: "examples/nginx.lua"

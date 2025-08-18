@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(make:*)",
+      "Bash(tl gen:*)",
+      "Bash(luarocks install:*)",
+      "Bash(busted:*)",
+      "Bash(tealdoc:*)",
+      "Bash(lua:*)",
+      "Bash(mv:*)",
+      "WebFetch(domain:docs.sentry.io)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp:*)",
+      "WebFetch(domain:develop.sentry.dev)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua examples/basic.lua)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
