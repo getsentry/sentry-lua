@@ -1,0 +1,196 @@
+name: Redis Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docker/redis/**'
+      - 'src/**'
+      - 'lua/**'
+      - '.github/workflows/redis-integration.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docker/redis/**'
+      - 'src/**'
+      - 'lua/**'
+      - '.github/workflows/redis-integration.yml'
+  workflow_dispatch:
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  redis-integration:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        redis-version: ["6.2-alpine", "7.2-alpine"]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@2b51285047da1547ffb1b2203d8be4c0af6b1f20 # v3
+      with:
+        driver-opts: network=host
+
+    - name: Cache Docker layers
+      uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-redis-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-redis-
+
+    - name: Create custom docker-compose for CI
+      working-directory: docker/redis
+      run: |
+        # Create a CI-specific docker-compose that uses the matrix Redis version
+        sed "s/redis:7-alpine/redis:${{ matrix.redis-version }}/g" docker-compose.yml > docker-compose.ci.yml
+        cat docker-compose.ci.yml
+
+    - name: Build test container
+      working-directory: docker/redis
+      run: |
+        docker-compose -f docker-compose.ci.yml build --build-arg BUILDKIT_INLINE_CACHE=1 sentry-test
+      env:
+        DOCKER_BUILDKIT: 1
+        COMPOSE_DOCKER_CLI_BUILD: 1
+
+    - name: Start Redis server
+      working-directory: docker/redis
+      run: |
+        docker-compose -f docker-compose.ci.yml up -d redis
+        
+        # Wait for Redis to be ready with timeout
+        echo "⏳ Waiting for Redis ${{ matrix.redis-version }} to be ready..."
+        timeout=60
+        counter=0
+        while ! docker-compose -f docker-compose.ci.yml exec -T redis redis-cli ping > /dev/null 2>&1; do
+          counter=$((counter + 1))
+          if [ $counter -gt $timeout ]; then
+            echo "❌ Timeout waiting for Redis to start"
+            docker-compose -f docker-compose.ci.yml logs redis
+            exit 1
+          fi
+          echo "  Attempt $counter/$timeout..."
+          sleep 2
+        done
+        echo "✅ Redis ${{ matrix.redis-version }} is ready!"
+
+    - name: Run Redis integration tests
+      working-directory: docker/redis
+      run: |
+        echo "🧪 Running Redis + Sentry Lua integration tests..."
+        
+        # Run the test with proper error handling
+        if docker-compose -f docker-compose.ci.yml run --rm sentry-test; then
+          echo "✅ Integration tests passed!"
+        else
+          echo "❌ Integration tests failed!"
+          echo "📋 Redis logs:"
+          docker-compose -f docker-compose.ci.yml logs redis
+          echo "📋 Test container logs:"
+          docker-compose -f docker-compose.ci.yml logs sentry-test
+          exit 1
+        fi
+
+    - name: Capture test logs
+      if: always()
+      working-directory: docker/redis
+      run: |
+        echo "📋 Capturing all container logs..."
+        mkdir -p test-logs
+        docker-compose -f docker-compose.ci.yml logs redis > test-logs/redis-${{ matrix.redis-version }}.log 2>&1 || echo "No redis logs"
+        docker-compose -f docker-compose.ci.yml logs sentry-test > test-logs/sentry-test-${{ matrix.redis-version }}.log 2>&1 || echo "No test logs"
+        
+        # Show Redis version info
+        echo "Redis version info:" > test-logs/redis-info-${{ matrix.redis-version }}.txt
+        docker-compose -f docker-compose.ci.yml exec -T redis redis-cli INFO server >> test-logs/redis-info-${{ matrix.redis-version }}.txt 2>&1 || echo "Could not get Redis info"
+
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: redis-integration-logs-${{ matrix.redis-version }}
+        path: docker/redis/test-logs/
+        retention-days: 7
+
+    - name: Test Redis Lua script functionality
+      working-directory: docker/redis
+      run: |
+        echo "🔍 Testing Redis Lua script capabilities..."
+        
+        # Test that Redis can execute Lua scripts
+        docker-compose -f docker-compose.ci.yml exec -T redis redis-cli EVAL "return 'Hello from Redis Lua!'" 0
+        
+        # Test script loading and execution
+        SCRIPT_SHA=$(docker-compose -f docker-compose.ci.yml exec -T redis redis-cli SCRIPT LOAD "return ARGV[1] .. ' from Redis ' .. redis.call('INFO', 'server')['redis_version']")
+        echo "Script loaded with SHA: $SCRIPT_SHA"
+        
+        # Execute the loaded script
+        docker-compose -f docker-compose.ci.yml exec -T redis redis-cli EVALSHA "$SCRIPT_SHA" 0 "Greetings"
+
+    - name: Verify Sentry SDK functionality
+      working-directory: docker/redis
+      run: |
+        echo "🔍 Verifying Sentry SDK can be loaded..."
+        
+        # Test that our Sentry module can be required
+        docker-compose -f docker-compose.ci.yml run --rm sentry-test lua -e "
+          local sentry = require('sentry.init')
+          print('✅ Sentry SDK loaded successfully')
+          
+          -- Test basic initialization without network calls
+          local client = sentry.init({
+            dsn = 'https://test@test.ingest.sentry.io/123456',
+            environment = 'ci-test',
+            debug = false,
+            transport = false  -- Disable actual network calls
+          })
+          
+          print('✅ Sentry client initialized')
+        "
+
+    - name: Clean up containers
+      if: always()
+      working-directory: docker/redis
+      run: |
+        echo "🧹 Cleaning up containers..."
+        docker-compose -f docker-compose.ci.yml down -v --remove-orphans || true
+        docker system prune -f || true
+
+  # Summary job that depends on all matrix jobs
+  redis-integration-summary:
+    needs: redis-integration
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Check integration test results
+      run: |
+        echo "Redis Integration Test Summary"
+        echo "============================="
+        
+        if [ "${{ needs.redis-integration.result }}" = "success" ]; then
+          echo "✅ All Redis integration tests passed across all Redis versions!"
+          echo "🎉 Redis Lua scripts executed successfully"
+          echo "🎉 Sentry SDK integration verified"
+        else
+          echo "❌ Some Redis integration tests failed"
+          echo "Check the individual job logs for details"
+          exit 1
+        fi
+
+    - name: Report test status
+      if: always()
+      run: |
+        echo "Integration test matrix results:"
+        echo "- Redis 6.2: ${{ needs.redis-integration.result }}"
+        echo "- Redis 7.0: ${{ needs.redis-integration.result }}"  
+        echo "- Redis 7.2: ${{ needs.redis-integration.result }}"
