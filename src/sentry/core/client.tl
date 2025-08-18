@@ -6,7 +6,11 @@ local Scope = require("sentry.core.scope")
 local stacktrace = require("sentry.utils.stacktrace")
 local serialize = require("sentry.utils.serialize")
 local runtime_utils = require("sentry.utils.runtime")
+local os_utils = require("sentry.utils.os")
 local types = require("sentry.types")
+
+-- Load platform detectors
+require("sentry.platform_loader")
 
 local SentryOptions = types.SentryOptions
 
@@ -47,6 +51,15 @@ function Client:new(options: SentryOptions): Client
       version = runtime_info.version,
       description = runtime_info.description
    })
+   
+   -- Initialize OS context in scope (if available)
+   local os_info = os_utils.get_os_info()
+   if os_info then
+      client.scope:set_context("os", {
+         name = os_info.name,
+         version = os_info.version
+      })
+   end
    
    return client
 end

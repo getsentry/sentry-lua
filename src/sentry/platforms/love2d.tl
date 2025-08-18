@@ -1,4 +1,6 @@
 local transport = require("sentry.core.transport")
+local os_utils = require("sentry.utils.os")
+local OSInfo = os_utils.OSInfo
 
 local record Love2DTransport
    endpoint: string
@@ -79,6 +81,24 @@ local function get_love2d_context(): table
    return context
 end
 
+local function detect_os(): OSInfo
+   if love and love.system then
+      local os_name = love.system.getOS()
+      if os_name then
+         return {
+            name = os_name,
+            version = ""
+         }
+      end
+   end
+   return nil
+end
+
+-- Register this detector
+os_utils.register_detector({
+   detect = detect_os
+})
+
 local function setup_love2d_integration()
    return Love2DTransport, get_love2d_context
 end
@@ -86,5 +106,6 @@ end
 return {
    setup_love2d_integration = setup_love2d_integration,
    Love2DTransport = Love2DTransport,
-   get_love2d_context = get_love2d_context
+   get_love2d_context = get_love2d_context,
+   detect_os = detect_os
 }

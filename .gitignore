@@ -8,3 +8,4 @@ luacov.report.out
 node_modules/
 .DS_Store
 docs/
+sentry-events.log
