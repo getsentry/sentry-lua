@@ -25,6 +25,10 @@ Central reference point for all LDK memory files.
 
 @.claude/memories/testing-strategies.md - Testing strategies for Lua projects: busted framework, spec files, C extension testing, and continuous integration setup
 
+## Documentation and Contribution
+
+@.claude/memories/contributing-sync.md - CONTRIBUTING.md and CI workflow synchronization: system dependencies, build requirements, platform matrix, and sync verification checklist
+
 ## Usage
 
 This index provides targeted access to LDK memory files based on development context.
