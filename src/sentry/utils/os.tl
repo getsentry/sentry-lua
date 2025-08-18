@@ -31,5 +31,6 @@ return {
    OSInfo = OSInfo,
    OSDetector = OSDetector,
    register_detector = register_detector,
-   get_os_info = get_os_info
+   get_os_info = get_os_info,
+   detectors = detectors  -- Expose for testing
 }

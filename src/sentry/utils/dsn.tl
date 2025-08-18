@@ -13,44 +13,61 @@ local function parse_dsn(dsn_string: string): DSN, string
       return {} as DSN, "DSN is required"
    end
    
-   local pattern = "^(https?)://([^:@]+):?([^@]*)@([^/]+)(/.*)$"
-   local protocol, public_key, secret_key, host, path = dsn_string:match(pattern)
+   -- Pattern to match DSN with optional secret key
+   -- https://public_key:secret_key@host:port/path/project_id
+   -- https://public_key@host:port/path/project_id
+   local protocol, credentials, host_path = dsn_string:match("^(https?)://([^@]+)@(.+)$")
    
-   if not protocol then
-      pattern = "^(https?)://([^@]+)@([^/]+)(/.*)$"
-      protocol, public_key, host, path = dsn_string:match(pattern)
-      secret_key = ""
-   end
-   
-   if not protocol or not public_key or not host or not path then
+   if not protocol or not credentials or not host_path then
       return {} as DSN, "Invalid DSN format"
    end
    
-   local project_id = path:match("/(%d+)$")
+   -- Parse credentials (public_key or public_key:secret_key)
+   local public_key, secret_key = credentials:match("^([^:]+):(.+)$")
+   if not public_key then
+      public_key = credentials
+      secret_key = ""
+   end
+   
+   if not public_key or public_key == "" then
+      return {} as DSN, "Invalid DSN format"
+   end
+   
+   -- Parse host and path
+   local host, path = host_path:match("^([^/]+)(.*)$")
+   if not host or not path or path == "" then
+      return {} as DSN, "Invalid DSN format"
+   end
+   
+   -- Extract project ID from path (last numeric segment)
+   local project_id = path:match("/([%d]+)$")
    if not project_id then
       return {} as DSN, "Could not extract project ID from DSN"
    end
    
+   -- Parse port from host
    local port = 443
    if protocol == "http" then
       port = 80
    end
    
-   local host_parts = host:split(":")
-   if #host_parts > 1 then
-      host = host_parts[1]
-      port = tonumber(host_parts[2]) or port
+   local host_part, port_part = host:match("^([^:]+):?(%d*)$")
+   if host_part then
+      host = host_part
+      if port_part and port_part ~= "" then
+         port = tonumber(port_part) or port
+      end
    end
    
    return {
       protocol = protocol,
       public_key = public_key,
-      secret_key = secret_key,
+      secret_key = secret_key or "",
       host = host,
       port = port,
       path = path,
       project_id = project_id
-   }, ""
+   }, nil  -- Return nil instead of empty string for no error
 end
 
 local function build_ingest_url(dsn: DSN): string
@@ -74,17 +91,6 @@ local function build_auth_header(dsn: DSN): string
    return table.concat(auth_parts, ", ")
 end
 
--- Helper function for string split (Lua 5.1 compatible)
-function string.split(str: string, delimiter: string): {string}
-   local result: {string} = {}
-   local pattern = string.format("([^%s]+)", delimiter)
-   
-   for match in str:gmatch(pattern) do
-      table.insert(result, match)
-   end
-   
-   return result
-end
 
 return {
    parse_dsn = parse_dsn,

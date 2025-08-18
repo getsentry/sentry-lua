@@ -2,12 +2,16 @@
 
 # Build Teal files to Lua
 build:
-	mkdir -p build/sentry/{core,utils,platforms}
+	rm -rf build/
+	mkdir -p build/sentry/{core,utils,platforms/{standard,roblox,love2d,nginx,redis,defold,test}}
 	tl gen src/sentry/utils/stacktrace.tl -o build/sentry/utils/stacktrace.lua
 	tl gen src/sentry/utils/serialize.tl -o build/sentry/utils/serialize.lua
 	tl gen src/sentry/utils/dsn.tl -o build/sentry/utils/dsn.lua
 	tl gen src/sentry/utils/os.tl -o build/sentry/utils/os.lua
 	tl gen src/sentry/utils/runtime.tl -o build/sentry/utils/runtime.lua
+	tl gen src/sentry/utils/transport.tl -o build/sentry/utils/transport.lua
+	tl gen src/sentry/utils/json.tl -o build/sentry/utils/json.lua
+	tl gen src/sentry/utils/http.tl -o build/sentry/utils/http.lua
 	tl gen src/sentry/core/context.tl -o build/sentry/core/context.lua
 	tl gen src/sentry/core/scope.tl -o build/sentry/core/scope.lua
 	tl gen src/sentry/core/transport.tl -o build/sentry/core/transport.lua
@@ -19,13 +23,23 @@ build:
 	tl gen src/sentry/types.tl -o build/sentry/types.lua
 	tl gen src/sentry/platform_loader.tl -o build/sentry/platform_loader.lua
 	tl gen src/sentry/init.tl -o build/sentry/init.lua
-	tl gen src/sentry/platforms/redis.tl -o build/sentry/platforms/redis.lua
-	tl gen src/sentry/platforms/nginx.tl -o build/sentry/platforms/nginx.lua
-	tl gen src/sentry/platforms/roblox.tl -o build/sentry/platforms/roblox.lua
-	tl gen src/sentry/platforms/love2d.tl -o build/sentry/platforms/love2d.lua
-	tl gen src/sentry/platforms/desktop.tl -o build/sentry/platforms/desktop.lua
-	tl gen src/sentry/platforms/roblox_file_io.tl -o build/sentry/platforms/roblox_file_io.lua
-	tl gen src/sentry/platforms/defold_file_io.tl -o build/sentry/platforms/defold_file_io.lua
+	# Platform-specific modules
+	tl gen src/sentry/platforms/standard/os_detection.tl -o build/sentry/platforms/standard/os_detection.lua
+	tl gen src/sentry/platforms/standard/transport.tl -o build/sentry/platforms/standard/transport.lua
+	tl gen src/sentry/platforms/standard/file_transport.tl -o build/sentry/platforms/standard/file_transport.lua
+	tl gen src/sentry/platforms/roblox/os_detection.tl -o build/sentry/platforms/roblox/os_detection.lua
+	tl gen src/sentry/platforms/roblox/transport.tl -o build/sentry/platforms/roblox/transport.lua
+	tl gen src/sentry/platforms/roblox/context.tl -o build/sentry/platforms/roblox/context.lua
+	tl gen src/sentry/platforms/roblox/file_io.tl -o build/sentry/platforms/roblox/file_io.lua
+	tl gen src/sentry/platforms/love2d/os_detection.tl -o build/sentry/platforms/love2d/os_detection.lua
+	tl gen src/sentry/platforms/love2d/transport.tl -o build/sentry/platforms/love2d/transport.lua
+	tl gen src/sentry/platforms/love2d/context.tl -o build/sentry/platforms/love2d/context.lua
+	tl gen src/sentry/platforms/nginx/os_detection.tl -o build/sentry/platforms/nginx/os_detection.lua
+	tl gen src/sentry/platforms/nginx/transport.tl -o build/sentry/platforms/nginx/transport.lua
+	tl gen src/sentry/platforms/redis/transport.tl -o build/sentry/platforms/redis/transport.lua
+	tl gen src/sentry/platforms/defold/transport.tl -o build/sentry/platforms/defold/transport.lua
+	tl gen src/sentry/platforms/defold/file_io.tl -o build/sentry/platforms/defold/file_io.lua
+	tl gen src/sentry/platforms/test/transport.tl -o build/sentry/platforms/test/transport.lua
 
 # Run unit tests
 test: build
@@ -46,7 +60,7 @@ install:
 # Generate documentation
 docs: build
 	mkdir -p docs
-	tealdoc html -o docs --all src/sentry/*.tl src/sentry/core/*.tl src/sentry/utils/*.tl src/sentry/platforms/*.tl
+	tealdoc html -o docs --all src/sentry/*.tl src/sentry/core/*.tl src/sentry/utils/*.tl src/sentry/platforms/**/*.tl
 
 # Lint code (strict)
 lint:
@@ -58,7 +72,7 @@ lint:
 	tl check src/sentry/core/file_transport.tl
 	tl check src/sentry/core/client.tl
 	tl check src/sentry/utils/*.tl
-	tl check src/sentry/platforms/*.tl
+	tl check src/sentry/platforms/**/*.tl
 
 # Lint code (permissive - ignore external module warnings)
 lint-soft:
@@ -70,7 +84,7 @@ lint-soft:
 	-tl check src/sentry/core/file_transport.tl
 	-tl check src/sentry/core/client.tl
 	-tl check src/sentry/utils/*.tl
-	-tl check src/sentry/platforms/*.tl
+	-tl check src/sentry/platforms/**/*.tl
 	@echo "Soft lint completed (warnings ignored)"
 
 # Docker tests

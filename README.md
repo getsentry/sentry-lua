@@ -12,12 +12,12 @@ A comprehensive, platform-agnostic Sentry SDK for Lua environments. Written in T
 ## Supported Platforms
 
 - Standard Lua 5.1+ environments
-- Redis (lua scripting)
-- nginx/OpenResty
 - Roblox game platform
 - LÖVE 2D game engine
 - Solar2D/Corona SDK
 - Defold game engine
+- Redis (lua scripting)
+- nginx/OpenResty
 
 ## Installation
 

@@ -3,10 +3,10 @@
 
 local function load_platforms()
    local platform_modules = {
-      "sentry.platforms.desktop",
-      "sentry.platforms.roblox",
-      "sentry.platforms.love2d",
-      "sentry.platforms.nginx"
+      "sentry.platforms.standard.os_detection",
+      "sentry.platforms.roblox.os_detection",
+      "sentry.platforms.love2d.os_detection",
+      "sentry.platforms.nginx.os_detection"
    }
    
    for _, module_name in ipairs(platform_modules) do

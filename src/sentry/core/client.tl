@@ -1,7 +1,4 @@
 local transport = require("sentry.core.transport")
-local TestTransport = require("sentry.core.test_transport")
-local FileTransport = require("sentry.core.file_transport")
-local auto_transport = require("sentry.core.auto_transport")
 local Scope = require("sentry.core.scope")
 local stacktrace = require("sentry.utils.stacktrace")
 local serialize = require("sentry.utils.serialize")
@@ -28,15 +25,13 @@ function Client:new(options: SentryOptions): Client
       enabled = true
    }, {__index = Client}) as Client
    
-   -- Configure transport
+   -- Configure transport using the registry system
    if options.transport then
+      -- User-provided transport takes precedence
       client.transport = options.transport:configure(options)
-   elseif options.test_transport then
-      client.transport = TestTransport:configure(options)
-   elseif options.file_transport then
-      client.transport = FileTransport:configure(options)
    else
-      client.transport = auto_transport.create_auto_transport(options)
+      -- Use transport registry to find best available transport
+      client.transport = transport.create_transport(options)
    end
    
    -- Configure scope max breadcrumbs from options
@@ -55,10 +50,14 @@ function Client:new(options: SentryOptions): Client
    -- Initialize OS context in scope (if available)
    local os_info = os_utils.get_os_info()
    if os_info then
-      client.scope:set_context("os", {
-         name = os_info.name,
-         version = os_info.version
-      })
+      local os_context: {string: string} = {
+         name = os_info.name
+      }
+      -- Only add version if it's not nil
+      if os_info.version then
+         os_context.version = os_info.version
+      end
+      client.scope:set_context("os", os_context)
    end
    
    return client

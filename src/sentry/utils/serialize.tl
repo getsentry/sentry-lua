@@ -1,4 +1,4 @@
-local json = require("cjson")
+local json = require("sentry.utils.json")
 
 local record EventData
    event_id: string

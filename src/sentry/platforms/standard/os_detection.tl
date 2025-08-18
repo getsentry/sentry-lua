@@ -44,7 +44,7 @@ local function detect_os(): OSInfo
             
             return {
                name = name,
-               version = ""
+               version = nil
             }
          end
       end
@@ -62,7 +62,7 @@ local function detect_os(): OSInfo
             local version = output:match("%[Version ([^%]]+)%]")
             return {
                name = "Windows",
-               version = version or ""
+               version = version or nil
             }
          end
       end

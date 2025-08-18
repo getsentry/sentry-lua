@@ -7,8 +7,6 @@ return {
    },
    external_libs = {
       "busted",
-      "http",
-      "cjson",
    },
    target_extension = "lua",
    gen_compat = "optional",

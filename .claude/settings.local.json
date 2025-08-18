@@ -18,7 +18,17 @@
       "mcp__sentry__search_docs",
       "mcp__sentry__get_doc",
       "mcp__sentry__search_issues",
-      "mcp__sentry__get_issue_details"
+      "mcp__sentry__get_issue_details",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua test_os_nil.lua)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua test_os_normal.lua)",
+      "WebFetch(domain:github.com)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" busted spec/dsn_parsing_spec.lua --output=TAP)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" busted --output=TAP)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" busted)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua test_transport_selection.lua)",
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
