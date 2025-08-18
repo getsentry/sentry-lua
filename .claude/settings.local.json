@@ -13,7 +13,8 @@
       "Bash(claude mcp add:*)",
       "Bash(claude mcp:*)",
       "WebFetch(domain:develop.sentry.dev)",
-      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua examples/basic.lua)"
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua examples/basic.lua)",
+      "mcp__sentry__search_events"
     ],
     "deny": [],
     "ask": []

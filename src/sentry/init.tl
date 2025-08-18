@@ -1,4 +1,5 @@
 local Client = require("sentry.core.client")
+local Scope = require("sentry.core.scope")
 
 local record Sentry
    _client: Client
@@ -62,16 +63,16 @@ local function close()
    end
 end
 
-local function with_scope(callback: function(scope: Client))
+local function with_scope(callback: function(scope: Scope))
    if not sentry._client then
       error("Sentry not initialized. Call sentry.init() first.")
    end
    
-   local original_context = sentry._client.context:clone()
+   local original_scope = sentry._client.scope:clone()
    
-   local success, result = pcall(callback, sentry._client)
+   local success, result = pcall(callback, sentry._client.scope)
    
-   sentry._client.context = original_context
+   sentry._client.scope = original_scope
    
    if not success then
       error(result as any)

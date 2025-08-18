@@ -2,67 +2,47 @@ local transport = require("sentry.core.transport")
 local TestTransport = require("sentry.core.test_transport")
 local FileTransport = require("sentry.core.file_transport")
 local auto_transport = require("sentry.core.auto_transport")
-local Context = require("sentry.core.context")
+local Scope = require("sentry.core.scope")
 local stacktrace = require("sentry.utils.stacktrace")
 local serialize = require("sentry.utils.serialize")
 local runtime_utils = require("sentry.utils.runtime")
+local types = require("sentry.types")
 
-local record Config
-   dsn: string
-   environment: string
-   release: string
-   debug: boolean
-   sample_rate: number
-   max_breadcrumbs: number
-   before_send: function(event: table): table
-   transport: any
-   test_transport: boolean
-   file_transport: boolean
-   file_path: string
-   append_mode: boolean
-   file_io: any
-   timeout: number
-end
+local SentryOptions = types.SentryOptions
 
 local record Client
-   config: Config
-   context: Context
+   options: SentryOptions  -- Configuration from sentry.init()
+   scope: Scope            -- Current scope with user, tags, contexts, etc.
    transport: any
    enabled: boolean
 end
 
-function Client:new(config: Config): Client
+function Client:new(options: SentryOptions): Client
    local client = setmetatable({
-      config = config or {},
-      context = Context:new(),
+      options = options or {} as SentryOptions,
+      scope = Scope:new(),
       enabled = true
    }, {__index = Client}) as Client
    
-   if config.transport then
-      client.transport = config.transport:configure(config)
-   elseif config.test_transport then
-      client.transport = TestTransport:configure(config)
-   elseif config.file_transport then
-      client.transport = FileTransport:configure(config)
+   -- Configure transport
+   if options.transport then
+      client.transport = options.transport:configure(options)
+   elseif options.test_transport then
+      client.transport = TestTransport:configure(options)
+   elseif options.file_transport then
+      client.transport = FileTransport:configure(options)
    else
-      client.transport = auto_transport.create_auto_transport(config)
+      client.transport = auto_transport.create_auto_transport(options)
    end
    
-   if config.environment then
-      client.context.environment = config.environment
+   -- Configure scope max breadcrumbs from options
+   if options.max_breadcrumbs then
+      client.scope.max_breadcrumbs = options.max_breadcrumbs
    end
    
-   if config.release then
-      client.context.release = config.release
-   end
-   
-   if config.max_breadcrumbs then
-      client.context.max_breadcrumbs = config.max_breadcrumbs
-   end
-   
-   -- Initialize runtime context
+   -- Initialize runtime context in scope
    local runtime_info = runtime_utils.get_runtime_info()
-   client.context:set_context("runtime", {
+   client.scope:set_context("runtime", {
       name = runtime_info.name,
       version = runtime_info.version,
       description = runtime_info.description
@@ -72,7 +52,7 @@ function Client:new(config: Config): Client
 end
 
 function Client:is_enabled(): boolean
-   return self.enabled and self.config.dsn and self.config.dsn ~= ""
+   return self.enabled and self.options.dsn and self.options.dsn ~= ""
 end
 
 function Client:capture_message(message: string, level: string): string
@@ -82,10 +62,15 @@ function Client:capture_message(message: string, level: string): string
    
    level = level or "info"
    local stack_trace = stacktrace.get_stack_trace(1)
-   local event = serialize.create_event(level, message, self.context as any, stack_trace)
    
-   if self.config.before_send then
-      event = self.config.before_send(event as any) as any
+   -- Create basic event
+   local event = serialize.create_event(level, message, self.options.environment or "production", self.options.release, stack_trace)
+   
+   -- Apply scope data to event
+   event = self.scope:apply_to_event(event)
+   
+   if self.options.before_send then
+      event = self.options.before_send(event) as types.EventData
       if not event then
          return ""
       end
@@ -93,7 +78,7 @@ function Client:capture_message(message: string, level: string): string
    
    local success, err = (self.transport as any):send(event)
    
-   if self.config.debug then
+   if self.options.debug then
       if success then
          print("[Sentry] Event sent: " .. event.event_id)
       else
@@ -112,7 +97,8 @@ function Client:capture_exception(exception: table, level: string): string
    level = level or "error"
    local stack_trace = stacktrace.get_stack_trace(1)
    
-   local event = serialize.create_event(level, (exception as any).message or "Exception", self.context as any, stack_trace)
+   local event = serialize.create_event(level, (exception as any).message or "Exception", self.options.environment or "production", self.options.release, stack_trace)
+   event = self.scope:apply_to_event(event)
    (event as any).exception = {
       values = {{
          type = (exception as any).type or "Error",
@@ -142,19 +128,19 @@ function Client:capture_exception(exception: table, level: string): string
 end
 
 function Client:add_breadcrumb(breadcrumb: table)
-   self.context:add_breadcrumb(breadcrumb)
+   self.scope:add_breadcrumb(breadcrumb)
 end
 
 function Client:set_user(user: table)
-   self.context:set_user(user)
+   self.scope:set_user(user)
 end
 
 function Client:set_tag(key: string, value: string)
-   self.context:set_tag(key, value)
+   self.scope:set_tag(key, value)
 end
 
 function Client:set_extra(key: string, value: any)
-   self.context:set_extra(key, value)
+   self.scope:set_extra(key, value)
 end
 
 function Client:close()

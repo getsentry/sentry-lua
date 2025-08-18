@@ -31,8 +31,8 @@ local function generate_event_id(): string
    return table.concat(result)
 end
 
-local function create_event(level: string, message: string, context: table, stack_trace: table): EventData
-   local ctx = context or {}
+-- Create a basic event structure - scope data will be applied separately
+local function create_event(level: string, message: string, environment: string, release: string, stack_trace: table): EventData
    local event: EventData = {
       event_id = generate_event_id(),
       timestamp = os.time(),
@@ -43,13 +43,13 @@ local function create_event(level: string, message: string, context: table, stac
          version = "0.0.1"
       },
       message = message,
-      user = (ctx as any).user or {},
-      tags = (ctx as any).tags or {},
-      extra = (ctx as any).extra or {},
-      breadcrumbs = (ctx as any).breadcrumbs or {},
-      environment = (ctx as any).environment or "production",
-      release = (ctx as any).release,
-      contexts = (ctx as any).contexts or {}
+      environment = environment or "production",
+      release = release,
+      user = {},
+      tags = {},
+      extra = {},
+      breadcrumbs = {},
+      contexts = {}
    }
    
    if stack_trace and stack_trace.frames then
