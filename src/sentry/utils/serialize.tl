@@ -1,4 +1,5 @@
 local json = require("sentry.utils.json")
+local version = require("sentry.version")
 
 local record EventData
    event_id: string
@@ -40,7 +41,7 @@ local function create_event(level: string, message: string, environment: string,
       platform = "lua",
       sdk = {
          name = "sentry.lua",
-         version = "0.0.1"
+         version = version
       },
       message = message,
       environment = environment or "production",

@@ -1,5 +1,6 @@
 local file_io = require("sentry.core.file_io")
 local json = require("sentry.utils.json")
+local version = require("sentry.version")
 
 local record FileTransport
    endpoint: string
@@ -54,7 +55,7 @@ function FileTransport:configure(config: table): FileTransport
    
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua-file/0.0.1"
+      ["User-Agent"] = "sentry-lua-file/" .. version
    }
    
    return self

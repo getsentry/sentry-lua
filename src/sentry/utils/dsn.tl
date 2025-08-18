@@ -1,3 +1,5 @@
+local version = require("sentry.version")
+
 local record DSN
    protocol: string
    public_key: string
@@ -81,7 +83,7 @@ local function build_auth_header(dsn: DSN): string
    local auth_parts = {
       "Sentry sentry_version=7",
       "sentry_key=" .. dsn.public_key,
-      "sentry_client=sentry-lua/0.0.1"
+      "sentry_client=sentry-lua/" .. version
    }
    
    if dsn.secret_key and dsn.secret_key ~= "" then

@@ -1,5 +1,6 @@
 -- Test transport for capturing events in memory
 local transport_utils = require("sentry.utils.transport")
+local version = require("sentry.version")
 
 local record TestTransport
    endpoint: string
@@ -18,7 +19,7 @@ function TestTransport:configure(config: table): transport_utils.Transport
    self.timeout = (config as any).timeout or 30
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua-test/0.0.1"
+      ["User-Agent"] = "sentry-lua-test/" .. version
    }
    self.events = {}
    return self as transport_utils.Transport

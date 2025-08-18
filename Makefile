@@ -4,6 +4,7 @@
 build:
 	rm -rf build/
 	mkdir -p build/sentry/{core,utils,platforms/{standard,roblox,love2d,nginx,redis,defold,test}}
+	tl gen src/sentry/version.tl -o build/sentry/version.lua
 	tl gen src/sentry/utils/stacktrace.tl -o build/sentry/utils/stacktrace.lua
 	tl gen src/sentry/utils/serialize.tl -o build/sentry/utils/serialize.lua
 	tl gen src/sentry/utils/dsn.tl -o build/sentry/utils/dsn.lua

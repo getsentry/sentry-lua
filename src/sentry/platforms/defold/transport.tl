@@ -1,6 +1,7 @@
 -- Defold transport (similar to file transport but optimized for Defold)
 local transport_utils = require("sentry.utils.transport")
 local json = require("sentry.utils.json")
+local version = require("sentry.version")
 
 local record DefoldTransport
    endpoint: string
@@ -22,7 +23,7 @@ function DefoldTransport:configure(config: table): transport_utils.Transport
    self.event_queue = {}
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua-defold/0.0.1"
+      ["User-Agent"] = "sentry-lua-defold/" .. version
    }
    return self as transport_utils.Transport
 end

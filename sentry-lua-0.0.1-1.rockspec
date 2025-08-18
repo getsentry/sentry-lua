@@ -1,7 +1,7 @@
-package = "sentry-lua"
+package = "sentry"
 version = "0.0.1-1"
 source = {
-   url = "git+https://github.com/bruno-garcia/sentry-lua.git"
+   url = "git+https://github.com/getsentry/sentry-lua.git"
 }
 description = {
    summary = "Sentry SDK for Lua - Platform agnostic error tracking",
@@ -11,7 +11,7 @@ description = {
       Written in Teal Language for better type safety and developer experience.
    ]],
    license = "MIT",
-   homepage = "https://github.com/bruno-garcia/sentry-lua"
+   homepage = "https://github.com/getsentry/sentry-lua"
 }
 dependencies = {
    "lua >= 5.1",
@@ -29,5 +29,7 @@ build = {
       ["sentry.utils.serialize"] = "build/sentry/utils/serialize.lua"
    }
 }
+
+
 
 

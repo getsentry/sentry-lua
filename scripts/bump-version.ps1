@@ -39,42 +39,15 @@ Replace-TextInFile "$repoRoot/roblox.json" '(?<="version": ").*?(?=")' $newVersi
 # Update README.md
 Replace-TextInFile "$repoRoot/README.md" '(?<=release = ").*?(?=")' $newVersion
 
-# Update LuaRocks file - need to create a new one with proper version
-$oldRockspec = Get-ChildItem "$repoRoot/*.rockspec" | Select-Object -First 1
-if ($oldRockspec) {
-    $newRockspecName = "sentry-lua-$newVersion-1.rockspec"
-    Write-Host "Creating new rockspec: $newRockspecName"
-    
-    $content = Get-Content $oldRockspec.FullName -Raw
-    $content = $content -replace 'version = ".*?"', "version = `"$newVersion-1`""
-    $content | Set-Content "$repoRoot/$newRockspecName" -Encoding UTF8NoBOM
-    
-    # Remove old rockspec if it's not the dev version
-    if ($oldRockspec.Name -ne "sentry-lua-dev-1.rockspec") {
-        Remove-Item $oldRockspec.FullName
-        Write-Host "Removed old rockspec: $($oldRockspec.Name)"
-    }
+# Update LuaRocks file - update existing rockspec version
+$rockspec = Get-ChildItem "$repoRoot/*.rockspec" | Select-Object -First 1
+if ($rockspec) {
+    Write-Host "Updating rockspec: $($rockspec.Name)"
+    Replace-TextInFile $rockspec.FullName '(?<=version = ").*?(?=")' "$newVersion-1"
 }
 
-# Update all Teal source files with version references
-$tealFiles = @(
-    "src/sentry/core/test_transport.tl",
-    "src/sentry/utils/dsn.tl", 
-    "src/sentry/core/file_transport.tl",
-    "src/sentry/utils/serialize.tl",
-    "src/sentry/platforms/nginx/transport.tl",
-    "src/sentry/platforms/standard/file_transport.tl",
-    "src/sentry/platforms/standard/transport.tl",
-    "src/sentry/platforms/defold/transport.tl",
-    "src/sentry/platforms/redis/transport.tl",
-    "src/sentry/platforms/test/transport.tl",
-    "src/sentry/platforms/roblox/transport.tl",
-    "src/sentry/platforms/love2d/transport.tl"
-)
-
-foreach ($file in $tealFiles) {
-    Replace-TextInFile "$repoRoot/$file" '\d+\.\d+\.\d+' $newVersion
-}
+# Update centralized version file
+Replace-TextInFile "$repoRoot/src/sentry/version.tl" '(?<=VERSION = ").*?(?=")' $newVersion
 
 # Update test spec files
 Replace-TextInFile "$repoRoot/spec/sentry_spec.lua" '(?<=sentry\.set_tag\("version", ").*?(?=")' $newVersion

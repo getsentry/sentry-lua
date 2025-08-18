@@ -19,6 +19,6 @@
    ],
    "repository": {
       "type": "git",
-      "url": "https://github.com/bruno-garcia/sentry-lua.git"
+      "url": "https://github.com/getsentry/sentry-lua.git"
    }
 }

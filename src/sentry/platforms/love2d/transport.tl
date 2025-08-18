@@ -1,6 +1,7 @@
 -- LÖVE 2D transport with queued events
 local transport_utils = require("sentry.utils.transport")
 local json = require("sentry.utils.json")
+local version = require("sentry.version")
 
 local record Love2DTransport
    endpoint: string
@@ -27,7 +28,7 @@ function Love2DTransport:configure(config: table): transport_utils.Transport
    self.event_queue = {}
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua-love2d/0.0.1"
+      ["User-Agent"] = "sentry-lua-love2d/" .. version
    }
    return self as transport_utils.Transport
 end

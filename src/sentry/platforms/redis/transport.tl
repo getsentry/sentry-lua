@@ -1,6 +1,7 @@
 -- Redis transport for queuing events
 local transport_utils = require("sentry.utils.transport")
 local json = require("sentry.utils.json")
+local version = require("sentry.version")
 
 local record RedisTransport
    endpoint: string
@@ -34,7 +35,7 @@ function RedisTransport:configure(config: table): transport_utils.Transport
    self.redis_key = (config as any).redis_key or "sentry:events"
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua-redis/0.0.1"
+      ["User-Agent"] = "sentry-lua-redis/" .. version
    }
    return self as transport_utils.Transport
 end

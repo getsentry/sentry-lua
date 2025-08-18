@@ -3,6 +3,7 @@ local transport_utils = require("sentry.utils.transport")
 local dsn_utils = require("sentry.utils.dsn")
 local json = require("sentry.utils.json")
 local http = require("sentry.utils.http")
+local version = require("sentry.version")
 
 local record HttpTransport
    endpoint: string
@@ -43,7 +44,7 @@ function HttpTransport:configure(config: table): transport_utils.Transport
    self.timeout = (config as any).timeout or 30
    self.headers = {
       ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua/0.0.1",
+      ["User-Agent"] = "sentry-lua/" .. version,
       ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn)
    }
    return self as transport_utils.Transport
