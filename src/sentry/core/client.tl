@@ -119,8 +119,8 @@ function Client:capture_exception(exception: table, level: string): string
       }}
    }
    
-   if self.config.before_send then
-      event = self.config.before_send(event as any) as any
+   if self.options.before_send then
+      event = self.options.before_send(event as any) as any
       if not event then
          return ""
       end
@@ -128,7 +128,7 @@ function Client:capture_exception(exception: table, level: string): string
    
    local success, err = (self.transport as any):send(event)
    
-   if self.config.debug then
+   if self.options.debug then
       if success then
          print("[Sentry] Exception sent: " .. event.event_id)
       else

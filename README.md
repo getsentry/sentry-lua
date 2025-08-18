@@ -59,6 +59,47 @@ if not success then
 end
 ```
 
+## Automatic Error Capture
+
+For automatic capture of unhandled errors, use `sentry.wrap()` to wrap your main application function:
+
+```lua
+local sentry = require("sentry")
+
+sentry.init({
+   dsn = "https://your-dsn@sentry.io/project-id"
+})
+
+local function main()
+   -- Your application logic here
+   local config = nil
+   local db_url = config.database_url  -- This error will be automatically captured
+end
+
+-- Simple automatic error capture
+local success, result = sentry.wrap(main)
+
+if not success then
+   print("Error occurred but was sent to Sentry:", result)
+end
+```
+
+You can also provide a custom error handler:
+
+```lua
+local function custom_error_handler(err)
+   print("Custom handling:", err)
+   -- Perform cleanup, logging, etc.
+   return "Handled gracefully"
+end
+
+local success, result = sentry.wrap(main, custom_error_handler)
+```
+
+The `sentry.wrap()` approach automatically includes all your Sentry context (user data, tags, breadcrumbs) with captured errors, making it much simpler than manually wrapping every error-prone operation with `pcall`/`xpcall`.
+
+See `examples/wrap_demo.lua` for a complete demonstration.
+
 ## Development
 
 ### Prerequisites

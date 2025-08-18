@@ -79,6 +79,41 @@ local function with_scope(callback: function(scope: Scope))
    end
 end
 
+local function wrap(main_function: function, error_handler: function): boolean, any
+   if not sentry._client then
+      error("Sentry not initialized. Call sentry.init() first.")
+   end
+   
+   -- Default error handler that captures to Sentry
+   local function default_error_handler(err: any): any
+      -- Add breadcrumb for the unhandled error
+      add_breadcrumb({
+         message = "Unhandled error occurred",
+         category = "error", 
+         level = "error",
+         data = {
+            error_message = tostring(err)
+         }
+      })
+      
+      -- Capture the exception with full context
+      capture_exception({
+         type = "UnhandledException",
+         message = tostring(err)
+      }, "fatal")
+      
+      -- If user provided custom error handler, call it and return its result
+      if error_handler then
+         return error_handler(err)
+      end
+      
+      -- Return the error for the caller to handle (don't re-throw to avoid infinite loop)
+      return tostring(err)
+   end
+   
+   return xpcall(main_function, default_error_handler)
+end
+
 return {
    init = init,
    capture_message = capture_message,
@@ -88,5 +123,6 @@ return {
    set_tag = set_tag,
    set_extra = set_extra,
    close = close,
-   with_scope = with_scope
+   with_scope = with_scope,
+   wrap = wrap
 }

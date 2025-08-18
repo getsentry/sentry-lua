@@ -28,7 +28,9 @@
       "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua test_transport_selection.lua)",
       "Bash(rm:*)",
       "Bash(cp:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(LUA_PATH=\"build/?.lua;build/?/init.lua;;\" lua examples/auto_capture_test.lua)",
+      "Bash(LUA_PATH:*)"
     ],
     "deny": [],
     "ask": []
