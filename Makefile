@@ -24,14 +24,32 @@ test-coverage: build
 
 # Generate coverage report in LCOV format for codecov
 coverage-report: test-coverage
-	@# Try LCOV format first, fallback to copying luacov report if LCOV fails
-	@if ! lua -e "require('luacov.reporter.lcov').report()" > coverage.info 2>/dev/null; then \
-		echo "LCOV reporter failed, using luacov report format"; \
-		cp luacov.report.out coverage.info; \
+	@# Generate LCOV; do not swallow errors, and ensure non-empty output
+	@rm -f coverage.info
+	@echo "Generating LCOV with luacov.reporter.lcov ..."
+	@lua -e "require('luacov.reporter.lcov').report()" > coverage.info || true
+	@if [ ! -s coverage.info ]; then \
+		echo "coverage.info is empty after luacov.reporter.lcov; trying 'luacov -r lcov'"; \
+		luacov -r lcov > coverage.info 2>/dev/null || true; \
 	fi
-	@# Map build/*.lua file paths to src/*.tl source paths for Codecov
-	@sed -i.bak 's|SF:build/sentry/\(.*\)\.lua|SF:src/sentry/\1.tl|g' coverage.info
-	@rm -f coverage.info.bak
+	@if [ ! -s coverage.info ]; then \
+		echo "LCOV generation still empty; falling back to raw luacov report"; \
+		cp -f luacov.report.out coverage.info 2>/dev/null || true; \
+	fi
+	@# Print quick stats to help debug in CI
+	@echo "File stats (lines words bytes):"; \
+	( [ -f coverage.info ] && echo "coverage.info:" && wc -l -w -c coverage.info ) || true; \
+	( [ -f luacov.report.out ] && echo "luacov.report.out:" && wc -l -w -c luacov.report.out ) || true; \
+	( [ -f luacov.stats.out ] && echo "luacov.stats.out:" && wc -l -w -c luacov.stats.out ) || true
+	@# Show SF lines BEFORE path remapping
+	@echo "SF lines BEFORE remap:"; \
+	grep "^SF:" coverage.info || true
+	@# Map build/*.lua file paths (absolute or relative) to src/*.tl for Codecov
+	@# Handle both absolute and relative paths that contain build/sentry
+	@sed -i.bak 's|^SF:.*build/sentry/\(.*\)\.lua|SF:src/sentry/\1.tl|g' coverage.info
+	@# Show SF lines AFTER path remapping
+	@echo "SF lines AFTER remap:"; \
+	grep "^SF:" coverage.info || true
 	@# Verify that mapped source files actually exist
 	@echo "Verifying coverage file paths..."
 	@grep "^SF:" coverage.info | sed 's/^SF://' | while read -r file; do \
@@ -39,7 +57,9 @@ coverage-report: test-coverage
 			echo "Warning: Source file $$file not found in repository"; \
 		fi; \
 	done
-	@echo "Coverage report generated in coverage.info with source mapping"
+	@# Clean up sed backup and finish
+	@rm -f coverage.info.bak
+	@echo "Coverage report generated at coverage.info"
 
 # Clean build artifacts
 clean:
