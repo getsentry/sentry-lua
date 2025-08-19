@@ -156,3 +156,16 @@ jobs:
       with:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.sha }}
+        path: |
+          README.md
+          .github/example-event.png
+          CHANGELOG.md
+          *.rockspec
+          roblox.json
+          build/*
+          examples/*
