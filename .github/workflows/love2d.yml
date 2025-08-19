@@ -42,13 +42,30 @@ jobs:
         brew install love
         love --version
     
+    - name: Install SSL dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev
+    
+    - name: Install SSL dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install openssl
+        echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+    
     - name: Install dependencies
       run: |
         luarocks install busted
         luarocks install tl
         luarocks install lua-cjson
         luarocks install luasocket
-        luarocks install luasec
+        if [ -n "$OPENSSL_DIR" ]; then
+          echo "Installing luasec with OPENSSL_DIR=$OPENSSL_DIR"
+          luarocks install luasec OPENSSL_DIR=$OPENSSL_DIR
+        else
+          luarocks install luasec
+        fi
         luarocks install luacov
         luarocks install luacov-reporter-lcov
     
