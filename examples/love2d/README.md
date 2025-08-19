@@ -25,7 +25,7 @@ This example demonstrates how to integrate the Sentry Lua SDK with a Love2D game
    make build
    ```
 
-2. Run the Love2D example:
+2. Run the Love2D example (references built SDK via relative path):
    ```bash
    love examples/love2d
    ```
@@ -85,11 +85,20 @@ The demo sends data to the Sentry playground project. In production, you would:
 
 When integrating Sentry into your Love2D game:
 
-1. **Initialize Early**: Call `sentry.init()` in `love.load()`
-2. **Flush Regularly**: Call `transport:flush()` in `love.update()`
-3. **Clean Shutdown**: Call `transport:close()` in `love.quit()`
-4. **Add Context**: Use breadcrumbs and tags for better debugging
-5. **Handle Threads**: Ensure proper thread cleanup on exit
+1. **Add SDK to Project**: Copy `build/sentry/` into your Love2D project
+2. **Initialize Early**: Call `sentry.init()` in `love.load()` 
+3. **Flush Regularly**: Call `transport:flush()` in `love.update()`
+4. **Clean Shutdown**: Call `transport:close()` in `love.quit()`
+5. **Add Context**: Use breadcrumbs and tags for better debugging
+
+### Clean API Usage
+```lua
+local sentry = require("sentry")  -- Auto-detects Love2D platform
+
+function love.load()
+    sentry.init({dsn = "your-dsn"})  -- Platform transport selected automatically
+end
+```
 
 ## Troubleshooting
 

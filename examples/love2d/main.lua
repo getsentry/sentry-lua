@@ -1,8 +1,8 @@
 -- Love2D Sentry Integration Example
 -- A simple app with Sentry logo and error button to demonstrate Sentry SDK
 
--- Add build path for modules
-package.path = "../../build/?.lua;../../build/?/init.lua;" .. package.path
+-- Sentry SDK available in local sentry/ directory
+-- In production, copy build/sentry/ into your Love2D project
 
 local sentry = require("sentry")
 local logger = require("sentry.logger")
@@ -47,6 +47,14 @@ function love.load()
         release = "love2d-example@1.0.0",
         debug = true
     })
+    
+    -- Debug: Check which transport is being used
+    if sentry._client and sentry._client.transport then
+        print("[Debug] Transport type:", type(sentry._client.transport))
+        print("[Debug] Transport table:", sentry._client.transport)
+    else
+        print("[Debug] No transport found!")
+    end
     
     -- Initialize logger  
     logger.init({
