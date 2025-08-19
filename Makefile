@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install docs
+.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d
 
 # Build Teal files to Lua
 build:
@@ -158,6 +158,44 @@ docker-test-nginx:
 
 # Full test suite (excludes Love2D - requires Love2D installation)
 test-all: test docker-test-redis docker-test-nginx
+
+# Install Love2D (platform-specific)
+install-love2d:
+	@echo "Installing Love2D..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		echo "Installing Love2D on macOS..."; \
+		if ! command -v love > /dev/null 2>&1; then \
+			if command -v brew > /dev/null 2>&1; then \
+				brew install --cask love; \
+			else \
+				echo "❌ Homebrew not found. Please install Homebrew first."; \
+				exit 1; \
+			fi; \
+		else \
+			echo "✅ Love2D already installed: $$(love --version)"; \
+		fi; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		echo "Installing Love2D on Linux..."; \
+		if ! command -v love > /dev/null 2>&1; then \
+			if command -v apt-get > /dev/null 2>&1; then \
+				sudo add-apt-repository -y ppa:bartbes/love-stable; \
+				sudo apt-get update; \
+				sudo apt-get install -y love; \
+			else \
+				echo "❌ apt-get not found. Please install Love2D manually."; \
+				exit 1; \
+			fi; \
+		else \
+			echo "✅ Love2D already installed: $$(love --version)"; \
+		fi; \
+	else \
+		echo "❌ Unsupported platform: $$(uname)"; \
+		exit 1; \
+	fi
+	@echo "✅ Love2D installation complete"
+
+# CI target for Love2D - install Love2D and run tests
+ci-love2d: install-love2d build test-love
 
 # Full test suite including Love2D (requires Love2D to be installed)
 test-all-with-love: test test-love docker-test-redis docker-test-nginx

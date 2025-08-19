@@ -28,31 +28,6 @@ jobs:
     - name: Setup LuaRocks
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
     
-    - name: Install Love2D (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo add-apt-repository ppa:bartbes/love-stable
-        sudo apt-get update
-        sudo apt-get install -y love
-        love --version
-    
-    - name: Install Love2D (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install --cask love
-        # Love2D on macOS installs as an app bundle, create a local wrapper script
-        mkdir -p ~/bin
-        if [ -d "/Applications/love.app" ]; then
-          echo '#!/bin/bash' > ~/bin/love
-          echo 'exec /Applications/love.app/Contents/MacOS/love "$@"' >> ~/bin/love
-          chmod +x ~/bin/love
-          echo "$HOME/bin" >> $GITHUB_PATH
-          ~/bin/love --version
-        else
-          echo "❌ Love2D app not found at /Applications/love.app"
-          exit 1
-        fi
-    
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -66,70 +41,10 @@ jobs:
         echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
     
     - name: Install dependencies
-      run: |
-        luarocks install busted
-        luarocks install tl
-        luarocks install lua-cjson
-        luarocks install luasocket
-        if [ -n "$OPENSSL_DIR" ]; then
-          echo "Installing luasec with OPENSSL_DIR=$OPENSSL_DIR"
-          luarocks install luasec OPENSSL_DIR=$OPENSSL_DIR
-        else
-          luarocks install luasec
-        fi
-        luarocks install luacov
-        luarocks install luacov-reporter-lcov
+      run: make install
     
-    - name: Build project
-      run: make build
-      
-    - name: Verify lua-https binary for Love2D HTTPS support
-      run: |
-        # Verify the committed lua-https binary exists - FAIL if missing
-        if [ ! -f examples/love2d/https.so ]; then
-          echo "❌ CRITICAL: lua-https binary not found at examples/love2d/https.so"
-          echo "Love2D tests REQUIRE HTTPS support to pass. The https.so binary must be present."
-          echo "Rebuild it with: cd examples/love2d/lua-https && cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\$PWD/install && cmake --build build --target install"
-          exit 1
-        fi
-        
-        echo "✅ lua-https binary found: examples/love2d/https.so"
-        file examples/love2d/https.so
-    
-    - name: Run Love2D unit tests (busted)
-      run: |
-        LUA_PATH="build/?.lua;build/?/init.lua;;" busted spec/platforms/love2d/love2d_spec.lua --output=TAP
-    
-    - name: Run Love2D integration tests (headless)
-      run: |
-        # Set DISPLAY for headless mode on Ubuntu
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          export DISPLAY=:99
-          sudo apt-get install -y xvfb
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          sleep 3
-        fi
-        
-        # Copy lua-https binary to test directory - FAIL if copy fails
-        cp examples/love2d/https.so spec/platforms/love2d/ || {
-          echo "❌ CRITICAL: Failed to copy https.so to test directory"
-          echo "Love2D integration tests REQUIRE HTTPS support"
-          exit 1
-        }
-        
-        # Run Love2D tests and capture output
-        cd spec/platforms/love2d
-        timeout 30s love . > test_output.log 2>&1
-        
-        # Check if tests ran successfully by looking for expected output
-        if grep -q "All tests passed" test_output.log || grep -q "Tests completed" test_output.log; then
-          echo "✅ Love2D integration tests passed"
-          cat test_output.log
-        else
-          echo "❌ Love2D integration tests failed or did not complete properly"
-          cat test_output.log
-          exit 1
-        fi
+    - name: Install Love2D and run tests
+      run: make ci-love2d
     
     - name: Test example module loading
       run: |
