@@ -59,11 +59,15 @@ local function handle_health_check(request, response)
     local incoming_headers = extract_headers(request)
     local context = tracing.continue_trace_from_request(incoming_headers)
     
-    -- Start transaction with specific trace context to avoid global state issues
+    -- Parse incoming trace header to get correct parent span ID
+    local headers = require("sentry.tracing.headers")
+    local incoming_trace = headers.parse_sentry_trace(incoming_headers["sentry-trace"])
+    
+    -- Start transaction with correct parent-child relationship
     local tx = performance.start_transaction("GET /", "http.server", {
         trace_id = context and context.trace_id,
-        parent_span_id = context and context.span_id,
-        span_id = require("sentry.tracing.headers").generate_span_id()
+        parent_span_id = incoming_trace and incoming_trace.span_id,  -- Use incoming span as parent
+        span_id = headers.generate_span_id()
     })
     
     local health = { status = "healthy", timestamp = os.time() }
@@ -81,10 +85,14 @@ local function handle_get_users(request, response)
     local incoming_headers = extract_headers(request)
     local context = tracing.continue_trace_from_request(incoming_headers)
     
+    -- Parse incoming trace header to get correct parent span ID
+    local headers = require("sentry.tracing.headers")
+    local incoming_trace = headers.parse_sentry_trace(incoming_headers["sentry-trace"])
+    
     local tx = performance.start_transaction("GET /api/users", "http.server", {
         trace_id = context and context.trace_id,
-        parent_span_id = context and context.span_id,
-        span_id = require("sentry.tracing.headers").generate_span_id()
+        parent_span_id = incoming_trace and incoming_trace.span_id,  -- Use incoming span as parent
+        span_id = headers.generate_span_id()
     })
     print("📍 Handling GET /api/users")
     
@@ -117,10 +125,14 @@ local function handle_create_order(request, response)
     local incoming_headers = extract_headers(request)
     local context = tracing.continue_trace_from_request(incoming_headers)
     
+    -- Parse incoming trace header to get correct parent span ID
+    local headers = require("sentry.tracing.headers")
+    local incoming_trace = headers.parse_sentry_trace(incoming_headers["sentry-trace"])
+    
     local tx = performance.start_transaction("POST /api/orders", "http.server", {
         trace_id = context and context.trace_id,
-        parent_span_id = context and context.span_id,
-        span_id = require("sentry.tracing.headers").generate_span_id()
+        parent_span_id = incoming_trace and incoming_trace.span_id,  -- Use incoming span as parent
+        span_id = headers.generate_span_id()
     })
     print("📍 Handling POST /api/orders")
     
@@ -163,10 +175,14 @@ local function handle_slow_endpoint(request, response)
     local incoming_headers = extract_headers(request)
     local context = tracing.continue_trace_from_request(incoming_headers)
     
+    -- Parse incoming trace header to get correct parent span ID
+    local headers = require("sentry.tracing.headers")
+    local incoming_trace = headers.parse_sentry_trace(incoming_headers["sentry-trace"])
+    
     local tx = performance.start_transaction("GET /api/slow", "http.server", {
         trace_id = context and context.trace_id,
-        parent_span_id = context and context.span_id,
-        span_id = require("sentry.tracing.headers").generate_span_id()
+        parent_span_id = incoming_trace and incoming_trace.span_id,  -- Use incoming span as parent
+        span_id = headers.generate_span_id()
     })
     print("📍 Handling GET /api/slow")
     
@@ -196,19 +212,23 @@ local function handle_error_endpoint(request, response)
     local incoming_headers = extract_headers(request)
     local context = tracing.continue_trace_from_request(incoming_headers)
     
+    -- Parse incoming trace header to get correct parent span ID
+    local headers = require("sentry.tracing.headers")
+    local incoming_trace = headers.parse_sentry_trace(incoming_headers["sentry-trace"])
+    
     local tx = performance.start_transaction("GET /api/error", "http.server", {
         trace_id = context and context.trace_id,
-        parent_span_id = context and context.span_id,
-        span_id = require("sentry.tracing.headers").generate_span_id()
+        parent_span_id = incoming_trace and incoming_trace.span_id,  -- Use incoming span as parent
+        span_id = headers.generate_span_id()
     })
     print("📍 Handling GET /api/error")
     
-    local work_span = performance.start_span("process.data", "Processing data")
+    local work_span = tx:start_span("process.data", "Processing data")
     print("  → Processing data...")
     os.execute("sleep 0.05")
-    db_span:finish("ok")
+    work_span:finish("ok")
     
-    local error_span = performance.start_span("db.query", "Query user preferences")
+    local error_span = tx:start_span("db.query", "Query user preferences")
     print("  → Error occurred!")
     
     sentry.capture_exception({
@@ -216,7 +236,7 @@ local function handle_error_endpoint(request, response)
         message = "Connection timeout: Could not connect to database after 30s"
     }, "error")
     
-    performance.finish_span("internal_error")
+    error_span:finish("internal_error")
     tx:finish("internal_error")
     
     response:statusCode(500)

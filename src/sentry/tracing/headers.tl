@@ -3,31 +3,63 @@
 --- Implements sentry-trace header format: {trace_id}-{span_id}-{sampled}
 --- Supports both incoming trace continuation and outgoing trace propagation
 
-local headers = {}
+local record TraceData
+    trace_id: string
+    span_id: string
+    sampled: boolean
+end
+
+
+local record TraceInfo
+    sentry_trace: TraceData
+    baggage: {string: string}
+    traceparent: string
+end
+
+local record InjectOptions
+    include_traceparent: boolean
+end
+
+local record Headers
+    parse_sentry_trace: function(header_value: string): TraceData
+    generate_sentry_trace: function(trace_data: TraceData): string
+    parse_baggage: function(header_value: string): {string: string}
+    generate_baggage: function(baggage_data: {string: string}): string
+    generate_trace_id: function(): string
+    generate_span_id: function(): string
+    extract_trace_headers: function(http_headers: {string: string}): TraceInfo
+    inject_trace_headers: function(http_headers: {string: string}, trace_data: TraceData, baggage_data: {string: string}, options: InjectOptions)
+end
+
+local headers: Headers = {}
 
 local utils = require("sentry.utils")
 
 -- Constants for header parsing and validation
-local TRACE_ID_LENGTH = 32 -- 128-bit trace ID as hex string
-local SPAN_ID_LENGTH = 16  -- 64-bit span ID as hex string
+local TRACE_ID_LENGTH: number = 32 -- 128-bit trace ID as hex string
+local SPAN_ID_LENGTH: number = 16  -- 64-bit span ID as hex string
 
 ---Parse sentry-trace header value
 ---@param header_value string? The sentry-trace header value
 ---@return table|nil trace_data Parsed trace data with trace_id, span_id, and sampled fields
-function headers.parse_sentry_trace(header_value)
+function headers.parse_sentry_trace(header_value: string): TraceData
     if not header_value or type(header_value) ~= "string" then
         return nil
     end
 
     -- Remove whitespace
-    header_value = header_value:match("^%s*(.-)%s*$")
+    local trimmed = header_value:match("^%s*(.-)%s*$")
+    if not trimmed then
+        return nil
+    end
+    header_value = trimmed
     
     if #header_value == 0 then
         return nil
     end
 
     -- Split by dashes: {trace_id}-{span_id}-{sampled}
-    local parts = {}
+    local parts: {string} = {}
     for part in header_value:gmatch("[^%-]+") do
         table.insert(parts, part)
     end
@@ -60,7 +92,7 @@ function headers.parse_sentry_trace(header_value)
     end
 
     -- Parse sampled flag (optional)
-    local parsed_sampled = nil
+    local parsed_sampled: boolean = nil
     if sampled then
         if sampled == "1" then
             parsed_sampled = true
@@ -82,7 +114,7 @@ end
 ---Generate sentry-trace header value from trace data
 ---@param trace_data table Trace data with trace_id, span_id, and optional sampled fields
 ---@return string|nil header_value The sentry-trace header value or nil if invalid input
-function headers.generate_sentry_trace(trace_data)
+function headers.generate_sentry_trace(trace_data: TraceData): string
     if not trace_data or type(trace_data) ~= "table" then
         return nil
     end
@@ -132,15 +164,19 @@ end
 ---Baggage format: key1=value1,key2=value2,key3=value3;property=value
 ---@param header_value string? The baggage header value
 ---@return table baggage_data Parsed baggage data as key-value pairs
-function headers.parse_baggage(header_value)
-    local baggage_data = {}
+function headers.parse_baggage(header_value: string): {string: string}
+    local baggage_data: {string: string} = {}
     
     if not header_value or type(header_value) ~= "string" then
         return baggage_data
     end
 
     -- Remove whitespace
-    header_value = header_value:match("^%s*(.-)%s*$")
+    local trimmed = header_value:match("^%s*(.-)%s*$")
+    if not trimmed then
+        return baggage_data
+    end
+    header_value = trimmed
     
     if #header_value == 0 then
         return baggage_data
@@ -148,22 +184,28 @@ function headers.parse_baggage(header_value)
 
     -- Split by comma to get individual baggage items
     for item in header_value:gmatch("[^,]+") do
-        item = item:match("^%s*(.-)%s*$") -- Trim whitespace
+        local trimmed_item = item:match("^%s*(.-)%s*$") -- Trim whitespace
+        if trimmed_item then
+            item = trimmed_item
+        end
         
         -- Split by semicolon to separate key=value from properties
         local key_value_part = item:match("([^;]*)")
         if key_value_part then
-            key_value_part = key_value_part:match("^%s*(.-)%s*$")
+            local trimmed_kvp = key_value_part:match("^%s*(.-)%s*$")
+            if trimmed_kvp then
+                key_value_part = trimmed_kvp
+            end
             
             -- Split key=value
             local key, value = key_value_part:match("^([^=]+)=(.*)$")
             if key and value then
-                key = key:match("^%s*(.-)%s*$") -- Trim key
-                value = value:match("^%s*(.-)%s*$") -- Trim value
+                local trimmed_key = key:match("^%s*(.-)%s*$") -- Trim key
+                local trimmed_value = value:match("^%s*(.-)%s*$") -- Trim value
                 
                 -- URL decode if needed (basic implementation)
-                if key and value and #key > 0 then
-                    baggage_data[key] = value
+                if trimmed_key and trimmed_value and #trimmed_key > 0 then
+                    baggage_data[trimmed_key] = trimmed_value
                 end
             end
         end
@@ -175,16 +217,16 @@ end
 ---Generate baggage header value from baggage data
 ---@param baggage_data table Baggage data as key-value pairs
 ---@return string|nil header_value The baggage header value or nil if empty
-function headers.generate_baggage(baggage_data)
+function headers.generate_baggage(baggage_data: {string: string}): string
     if not baggage_data or type(baggage_data) ~= "table" then
         return nil
     end
 
-    local items = {}
+    local items: {string} = {}
     for key, value in pairs(baggage_data) do
         if type(key) == "string" and type(value) == "string" then
             -- Basic URL encoding for special characters
-            local encoded_value = value:gsub("([,;=%%])", function(c)
+            local encoded_value = value:gsub("([,;=%%])", function(c: string): string
                 return string.format("%%%02X", string.byte(c))
             end)
             
@@ -201,26 +243,28 @@ end
 
 ---Generate random trace ID (128-bit as 32 hex characters)
 ---@return string trace_id Random trace ID
-function headers.generate_trace_id()
-    return utils.generate_uuid():gsub("-", "")
+function headers.generate_trace_id(): string
+    local uuid_result = utils.generate_uuid():gsub("-", "")
+    return uuid_result
 end
 
 ---Generate random span ID (64-bit as 16 hex characters)  
 ---@return string span_id Random span ID
-function headers.generate_span_id()
-    return utils.generate_uuid():gsub("-", ""):sub(1, 16)
+function headers.generate_span_id(): string
+    local uuid_result = utils.generate_uuid():gsub("-", ""):sub(1, 16)
+    return uuid_result
 end
 
 ---Extract trace propagation headers from HTTP headers table
 ---@param http_headers table HTTP headers as key-value pairs (case-insensitive lookup)
 ---@return table trace_info Extracted trace information
-function headers.extract_trace_headers(http_headers)
+function headers.extract_trace_headers(http_headers: {string: string}): TraceInfo
     if not http_headers or type(http_headers) ~= "table" then
         return {}
     end
 
     -- Case-insensitive header lookup
-    local function get_header(name)
+    local function get_header(name: string): string
         local name_lower = name:lower()
         for key, value in pairs(http_headers) do
             if type(key) == "string" and key:lower() == name_lower then
@@ -230,7 +274,7 @@ function headers.extract_trace_headers(http_headers)
         return nil
     end
 
-    local trace_info = {}
+    local trace_info: TraceInfo = {}
 
     -- Extract sentry-trace header
     local sentry_trace = get_header("sentry-trace")
@@ -258,7 +302,7 @@ end
 ---@param trace_data table Trace data with trace_id, span_id, and optional sampled
 ---@param baggage_data table? Optional baggage data
 ---@param options table? Options for header injection
-function headers.inject_trace_headers(http_headers, trace_data, baggage_data, options)
+function headers.inject_trace_headers(http_headers: {string: string}, trace_data: TraceData, baggage_data: {string: string}, options: InjectOptions)
     if not http_headers or type(http_headers) ~= "table" then
         return
     end
