@@ -1,10 +1,8 @@
--- LÖVE 2D transport with HTTP and file fallback
+-- LÖVE 2D transport with lua-https support
 local transport_utils = require("sentry.utils.transport")
 local json = require("sentry.utils.json")
 local version = require("sentry.version")
 local dsn_utils = require("sentry.utils.dsn")
-local http = require("sentry.utils.http")
-local FileTransport = require("sentry.core.file_transport")
 
 local record Love2DTransport
    endpoint: string
@@ -20,7 +18,6 @@ local record Love2DTransport
    configure: function(self: Love2DTransport, config: table): transport_utils.Transport
    flush: function(self: Love2DTransport)
    close: function(self: Love2DTransport)
-   _write_to_file: function(self: Love2DTransport, data: string, data_type: string)
 end
 
 function Love2DTransport:send(event: table): boolean, string
@@ -77,37 +74,17 @@ function Love2DTransport:configure(config: table): transport_utils.Transport
    return self as transport_utils.Transport
 end
 
--- Process queued events and envelopes
--- File fallback for Love2D SSL/TLS issues
-function Love2DTransport:_write_to_file(data: string, data_type: string)
-   local timestamp = os.date("%Y%m%d_%H%M%S")
-   local filename = string.format("sentry_%s_%s.txt", data_type, timestamp)
-   
-   -- Use Love2D's filesystem if available
-   local love_global = rawget(_G, "love")
-   if love_global and love_global.filesystem then
-      local success, err = pcall(love_global.filesystem.write, filename, data)
-      if success then
-         print("[Sentry] " .. data_type .. " written to " .. filename .. " (Love2D filesystem)")
-      else
-         print("[Sentry] Failed to write " .. data_type .. " to Love2D filesystem: " .. tostring(err))
-      end
-   else
-      -- Fallback to standard IO
-      local file = io.open(filename, "w")
-      if file then
-         file:write(data)
-         file:close()
-         print("[Sentry] " .. data_type .. " written to " .. filename .. " (standard IO)")
-      else
-         print("[Sentry] Failed to write " .. data_type .. " to file")
-      end
-   end
-end
-
+-- Process queued events and envelopes using lua-https
 function Love2DTransport:flush()
    local love_global = rawget(_G, "love")
    if not love_global then
+      return
+   end
+   
+   -- Try to load lua-https module
+   local https_ok, https = pcall(require, "https")
+   if not https_ok then
+      print("[Sentry] lua-https module not available: " .. tostring(https))
       return
    end
    
@@ -115,22 +92,17 @@ function Love2DTransport:flush()
    if #self.event_queue > 0 then
       for _, event in ipairs(self.event_queue) do
          local body = json.encode(event)
-         local request = {
-            url = self.endpoint,
+         
+         local status = https.request(self.endpoint, {
             method = "POST",
             headers = self.headers,
-            body = body,
-            timeout = self.timeout
-         }
+            data = body
+         })
          
-         local response = http.request(request)
-         
-         if response.success and response.status == 200 then
-            print("[Sentry] Event sent successfully (status: " .. response.status .. ")")
+         if status == 200 then
+            print("[Sentry] Event sent successfully (status: " .. status .. ")")
          else
-            print("[Sentry] Event HTTP send failed, falling back to file transport: " .. (response.error or ("Status: " .. tostring(response.status))))
-            -- Fallback to file transport for Love2D SSL/TLS issues
-            self:_write_to_file(body, "event")
+            print("[Sentry] Event send failed to " .. self.endpoint .. " (status: " .. tostring(status) .. ")")
          end
       end
       self.event_queue = {}
@@ -139,22 +111,16 @@ function Love2DTransport:flush()
    -- Send queued envelopes
    if #self.envelope_queue > 0 then
       for _, envelope_body in ipairs(self.envelope_queue) do
-         local request = {
-            url = self.envelope_endpoint,
-            method = "POST",
+         local status = https.request(self.envelope_endpoint, {
+            method = "POST", 
             headers = self.envelope_headers,
-            body = envelope_body,
-            timeout = self.timeout
-         }
+            data = envelope_body
+         })
          
-         local response = http.request(request)
-         
-         if response.success and response.status == 200 then
-            print("[Sentry] Envelope sent successfully (status: " .. response.status .. ")")
+         if status == 200 then
+            print("[Sentry] Envelope sent successfully (status: " .. status .. ")")
          else
-            print("[Sentry] Envelope HTTP send failed, falling back to file transport: " .. (response.error or ("Status: " .. tostring(response.status))))
-            -- Fallback to file transport for Love2D SSL/TLS issues
-            self:_write_to_file(envelope_body, "envelope")
+            print("[Sentry] Envelope send failed to " .. self.envelope_endpoint .. " (status: " .. tostring(status) .. ")")
          end
       end
       self.envelope_queue = {}
