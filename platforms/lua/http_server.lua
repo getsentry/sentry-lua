@@ -30,9 +30,19 @@ function pegasus.wrap_server(pegasus_server)
                 local request_headers = {}
                 
                 if request and request.headers then
-                    -- Pegasus stores headers in request.headers table
-                    for key, value in pairs(request.headers) do
-                        request_headers[key:lower()] = value
+                    -- Pegasus stores headers in request.headers() function
+                    if type(request.headers) == "function" then
+                        local headers = request:headers()
+                        if headers then
+                            for key, value in pairs(headers) do
+                                request_headers[key:lower()] = value
+                            end
+                        end
+                    elseif type(request.headers) == "table" then
+                        -- Fallback for other servers that use table
+                        for key, value in pairs(request.headers) do
+                            request_headers[key:lower()] = value
+                        end
                     end
                 end
                 
