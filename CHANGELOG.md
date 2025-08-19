@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.2
+
+### Various fixes & improvements
+
+- changelog (37433ac9) by @bruno-garcia
+
 ## 0.0.1
 
 Sentry Hackweek 2025 - **Experimental** SDK
