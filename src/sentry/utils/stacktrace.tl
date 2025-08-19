@@ -109,7 +109,13 @@ local function get_stack_trace(skip_frames: number): StackTrace
       level = level + 1
    end
    
-   return {frames = frames}
+   -- Invert frames for Sentry (outermost to innermost)
+   local inverted_frames: {StackFrame} = {}
+   for i = #frames, 1, -1 do
+      table.insert(inverted_frames, frames[i])
+   end
+   
+   return {frames = inverted_frames}
 end
 
 local function format_stack_trace(stack_trace: StackTrace): string
