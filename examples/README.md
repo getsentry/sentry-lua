@@ -32,35 +32,33 @@ luarocks install pegasus
 luarocks install luasocket
 ```
 
-### `tracing_basic.lua`
-Introduction to performance monitoring:
-- Creating transactions and spans
-- Custom instrumentation
-- Error correlation within traces
-- Basic performance tracking
+### `tracing/client.lua`
+HTTP client demonstrating trace propagation:
+- Object-oriented performance API with method chaining
+- LuaSocket HTTP client integration
+- Automatic trace context injection into requests
+- Cross-process distributed tracing
+- Proper parent-child span relationships
 
-**Run:** `lua examples/tracing_basic.lua`
-
-### `tracing_server.lua`
+### `tracing/server.lua`
 HTTP server with distributed tracing:
+- Object-oriented transaction and span management
 - Pegasus web server integration
-- Automatic trace context extraction
-- Cross-process trace propagation
+- Automatic trace context extraction from headers
+- Cross-process trace propagation and continuation
 - Performance monitoring for web endpoints
 
-**Run:** `lua examples/tracing_server.lua`
-
-### `tracing_client.lua`
-HTTP client demonstrating trace propagation:
-- LuaSocket HTTP client
-- Trace context injection into requests
-- Cross-process distributed tracing
-- Client-side performance monitoring
-
 **Usage:**
-1. Start server: `lua examples/tracing_server.lua`
-2. In another terminal: `lua examples/tracing_client.lua`
-3. View connected traces in Sentry UI
+1. Start server: `lua examples/tracing/server.lua`
+2. In another terminal: `lua examples/tracing/client.lua`
+3. View connected traces in Sentry UI showing proper parent-child relationships
+
+**Key Features Demonstrated:**
+- `transaction:start_span()` and `span:finish()` methods
+- Automatic trace context management across HTTP boundaries
+- Proper distributed trace hierarchy (client transaction → server transaction)
+- Error correlation within distributed traces
+- Performance timing across service boundaries
 
 ## Configuration
 

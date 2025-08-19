@@ -13,6 +13,8 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 - **Platform Agnostic**: Works across Redis, nginx, Roblox, game engines, and standard Lua
 - **Type Safe**: Written in Teal Language with full type definitions
 - **Comprehensive**: Error tracking, breadcrumbs, context management, and scoped operations
+- **Performance Monitoring**: Object-oriented API for transactions and spans with distributed tracing
+- **Distributed Tracing**: Automatic trace propagation across service boundaries via HTTP headers
 - **Extensible**: Pluggable transport system for different environments
 
 ## Supported Platforms
@@ -90,37 +92,142 @@ sentry.init({
 local transaction = performance.start_transaction("user_checkout", "http.server")
 
 -- Add spans for different operations
-local validation_span = performance.start_span("validation", "Validate cart")
+local validation_span = transaction:start_span("validation", "Validate cart")
 -- ... validation logic ...
-performance.finish_span("ok")
+validation_span:finish("ok")
 
-local payment_span = performance.start_span("payment.charge", "Process payment")
+local payment_span = transaction:start_span("payment.charge", "Process payment")
 -- ... payment logic ...
-performance.finish_span("ok")
+payment_span:finish("ok")
 
 -- Finish the transaction
-performance.finish_transaction("ok")
+transaction:finish("ok")
+```
+
+### Advanced Tracing Features
+
+#### Nested Spans and Context Management
+
+```lua
+local transaction = performance.start_transaction("api_request", "http.server")
+
+-- Nested spans automatically maintain parent-child relationships
+local db_span = transaction:start_span("db.query", "Get user data")
+local user_id = get_user_from_db()
+db_span:finish("ok")
+
+-- Spans can be nested further
+local processing_span = transaction:start_span("processing", "Process user data")
+
+local validation_span = processing_span:start_span("validation", "Validate permissions")
+validate_user_permissions(user_id)
+validation_span:finish("ok")
+
+local enrichment_span = processing_span:start_span("enrichment", "Enrich user data")
+enrich_user_data(user_id)
+enrichment_span:finish("ok")
+
+processing_span:finish("ok")
+transaction:finish("ok")
+```
+
+#### Adding Context and Tags
+
+```lua
+local transaction = performance.start_transaction("checkout", "business.process")
+
+-- Add tags and data to transactions
+transaction:add_tag("user_type", "premium")
+transaction:add_tag("payment_method", "credit_card")
+transaction:add_data("cart_items", 3)
+transaction:add_data("total_amount", 99.99)
+
+local span = transaction:start_span("payment.process", "Charge credit card")
+-- Add context to individual spans
+span:add_tag("processor", "stripe")
+span:add_data("amount", 99.99)
+span:add_data("currency", "USD")
+
+-- Finish with status
+span:finish("ok")  -- or "error", "cancelled", etc.
+transaction:finish("ok")
 ```
 
 ### Distributed Tracing Examples
 
 The SDK includes complete examples demonstrating distributed tracing:
 
-- `examples/tracing_basic.lua` - Basic tracing concepts with transactions and spans
-- `examples/tracing_server.lua` - HTTP server with distributed tracing endpoints
-- `examples/tracing_client.lua` - HTTP client that propagates trace context
+- `examples/tracing/client.lua` - HTTP client that propagates trace context
+- `examples/tracing/server.lua` - HTTP server with distributed tracing endpoints
 
 To see distributed tracing in action:
 
-1. Start the server: `lua examples/tracing_server.lua`
-2. In another terminal, run the client: `lua examples/tracing_client.lua`
+1. Start the server: `lua examples/tracing/server.lua`
+2. In another terminal, run the client: `lua examples/tracing/client.lua`
 3. Check your Sentry dashboard to see connected traces across both processes
 
 The examples demonstrate:
-- Automatic trace context propagation via HTTP headers
-- Nested spans showing operation hierarchy and timing  
+- Object-oriented API with method chaining on transactions and spans
+- Automatic trace context propagation via HTTP headers (`sentry-trace`, `baggage`)
+- Proper parent-child span relationships across service boundaries
 - Error correlation within distributed traces
-- Performance monitoring across service boundaries
+- Performance monitoring with detailed timing information
+
+#### Manual Trace Propagation
+
+For custom HTTP implementations or other transport mechanisms:
+
+```lua
+local tracing = require("sentry.tracing")
+
+-- Get trace headers for outgoing requests
+local headers = tracing.get_request_headers("https://api.example.com")
+-- headers will contain sentry-trace and baggage headers
+
+-- Continue trace from incoming headers on the receiving side
+local incoming_headers = {
+    ["sentry-trace"] = "abc123-def456-1",
+    ["baggage"] = "user_id=12345,environment=prod"
+}
+tracing.continue_trace_from_request(incoming_headers)
+
+-- Now start transaction with continued trace context
+local transaction = performance.start_transaction("api_handler", "http.server")
+-- This transaction will be part of the distributed trace
+```
+
+### API Migration Guide
+
+The performance API has been redesigned to eliminate global state and provide better control over transaction and span lifecycle. Here's how to migrate:
+
+#### Old Global State API (Deprecated)
+```lua
+-- ❌ Old way (deprecated)
+local performance = require("sentry.performance")
+
+performance.start_transaction("checkout", "http.server")
+performance.start_span("validation", "Validate cart")
+performance.finish_span("ok")
+performance.finish_transaction("ok")
+```
+
+#### New Object-Oriented API (Recommended)
+```lua
+-- ✅ New way (recommended)
+local performance = require("sentry.performance")
+
+local transaction = performance.start_transaction("checkout", "http.server")
+local span = transaction:start_span("validation", "Validate cart")
+span:finish("ok")
+transaction:finish("ok")
+```
+
+**Benefits of the new API:**
+- **No global state**: Each transaction and span is explicitly managed
+- **Better control**: Clear ownership of when operations start and finish  
+- **Proper nesting**: Spans automatically inherit from their parent transaction/span
+- **Type safety**: Full Teal type definitions for all methods
+- **Easier debugging**: No hidden global state to track
 
 ## Automatic Error Capture
 
