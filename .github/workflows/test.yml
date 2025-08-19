@@ -164,7 +164,7 @@ jobs:
         name: ${{ github.sha }}
         path: |
           README.md
-          .github/example-event.png
+          example-event.png
           CHANGELOG.md
           *.rockspec
           roblox.json
