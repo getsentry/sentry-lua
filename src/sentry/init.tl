@@ -114,15 +114,16 @@ local function wrap(main_function: function, error_handler: function): boolean, 
    return xpcall(main_function, default_error_handler)
 end
 
-return {
-   init = init,
-   capture_message = capture_message,
-   capture_exception = capture_exception,
-   add_breadcrumb = add_breadcrumb,
-   set_user = set_user,
-   set_tag = set_tag,
-   set_extra = set_extra,
-   close = close,
-   with_scope = with_scope,
-   wrap = wrap
-}
+-- Set up the sentry module functions
+sentry.init = init
+sentry.capture_message = capture_message
+sentry.capture_exception = capture_exception
+sentry.add_breadcrumb = add_breadcrumb
+sentry.set_user = set_user
+sentry.set_tag = set_tag
+sentry.set_extra = set_extra
+sentry.close = close
+sentry.with_scope = with_scope
+sentry.wrap = wrap
+
+return sentry

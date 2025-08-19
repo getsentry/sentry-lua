@@ -133,6 +133,20 @@ function Scope:apply_to_event(event: table): table
       end
    end
    
+   -- Apply trace context if active (check for distributed tracing)
+   local success, tracing = pcall(require, "sentry.tracing.propagation")
+   if success and tracing and tracing.get_current_context then
+      local trace_context = tracing.get_current_context()
+      if trace_context then
+         event.contexts = event.contexts or {}
+         event.contexts.trace = {
+            trace_id = trace_context.trace_id,
+            span_id = trace_context.span_id,
+            parent_span_id = trace_context.parent_span_id
+         }
+      end
+   end
+   
    -- Apply breadcrumbs
    if #self.breadcrumbs > 0 then
       event.breadcrumbs = {}
