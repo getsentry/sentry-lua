@@ -40,8 +40,14 @@ test-love: build
 		echo "❌ Failed to copy https.so to test directory"; \
 		exit 1; \
 	}
-	@# Run Love2D integration tests
-	cd spec/platforms/love2d && timeout 30s love . > test_output.log 2>&1 || true
+	@# Run Love2D integration tests with cross-platform timeout and virtual display
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		echo "Running Love2D tests on macOS (no timeout command available)"; \
+		cd spec/platforms/love2d && love . > test_output.log 2>&1 || true; \
+	else \
+		echo "Running Love2D tests with virtual display on Linux"; \
+		cd spec/platforms/love2d && xvfb-run -a -s "-screen 0 1x1x24" timeout 30s love . > test_output.log 2>&1 || true; \
+	fi
 	@# Validate test results
 	@if grep -q "All tests passed" spec/platforms/love2d/test_output.log; then \
 		echo "✅ Love2D integration tests passed"; \
@@ -175,7 +181,7 @@ install-love2d:
 			echo "✅ Love2D already installed: $$(love --version)"; \
 		fi; \
 	elif [ "$$(uname)" = "Linux" ]; then \
-		echo "Installing Love2D on Linux..."; \
+		echo "Installing Love2D and virtual display on Linux..."; \
 		if ! command -v love > /dev/null 2>&1; then \
 			if command -v apt-get > /dev/null 2>&1; then \
 				sudo add-apt-repository -y ppa:bartbes/love-stable; \

@@ -268,9 +268,8 @@ function love.update(dt)
     end
 end
 
--- Minimal draw to keep Love2D happy
+-- Minimal draw function for headless mode (graphics disabled)
 function love.draw()
-    -- Just draw test progress
-    love.graphics.print("Running Love2D Sentry tests...", 10, 10)
-    love.graphics.print(string.format("Passed: %d, Failed: %d", test_results.passed, test_results.failed), 10, 30)
+    -- No graphics in headless mode
+    -- Test progress is printed to console instead
 end
