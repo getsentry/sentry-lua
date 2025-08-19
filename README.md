@@ -39,7 +39,7 @@ luarocks install sentry/sentry
 Import the module through the Roblox package system or use the pre-built releases.
 
 ### LÖVE 2D
-The SDK automatically detects the Love2D environment and uses `love.thread` for asynchronous HTTP requests. Simply copy the SDK files into your Love2D project:
+The SDK automatically detects the Love2D environment and uses the lua-https module for reliable HTTPS transport. Simply copy the SDK files into your Love2D project:
 
 ```lua
 -- main.lua
@@ -76,9 +76,13 @@ function love.quit()
 end
 ```
 
-**Note**: Love2D support requires `luasocket` for HTTP requests. Install with:
+**HTTPS Support**: The Love2D example includes a pre-compiled `https.so` binary from [lua-https](https://github.com/love2d/lua-https) for reliable SSL/TLS support. This binary is committed to the repository for convenience. If you need to rebuild it for your platform:
+
 ```bash
-luarocks install luasocket
+cd examples/love2d/lua-https
+cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install
+cmake --build build --target install
+# Copy install/https.so to your Love2D project
 ```
 
 See `examples/love2d/` for a complete interactive demo with error triggering and visual feedback.

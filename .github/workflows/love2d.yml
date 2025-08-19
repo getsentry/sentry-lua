@@ -54,6 +54,19 @@ jobs:
     
     - name: Build project
       run: make build
+      
+    - name: Verify lua-https binary for Love2D HTTPS support
+      run: |
+        # Verify the committed lua-https binary exists - FAIL if missing
+        if [ ! -f examples/love2d/https.so ]; then
+          echo "❌ CRITICAL: lua-https binary not found at examples/love2d/https.so"
+          echo "Love2D tests REQUIRE HTTPS support to pass. The https.so binary must be present."
+          echo "Rebuild it with: cd examples/love2d/lua-https && cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\$PWD/install && cmake --build build --target install"
+          exit 1
+        fi
+        
+        echo "✅ lua-https binary found: examples/love2d/https.so"
+        file examples/love2d/https.so
     
     - name: Run Love2D unit tests (busted)
       run: |
@@ -69,11 +82,26 @@ jobs:
           sleep 3
         fi
         
-        # Run Love2D tests with timeout to prevent hanging
-        timeout 30s love spec/platforms/love2d || true
+        # Copy lua-https binary to test directory - FAIL if copy fails
+        cp examples/love2d/https.so spec/platforms/love2d/ || {
+          echo "❌ CRITICAL: Failed to copy https.so to test directory"
+          echo "Love2D integration tests REQUIRE HTTPS support"
+          exit 1
+        }
         
-        # Check if tests produced expected output
-        echo "Love2D integration tests completed"
+        # Run Love2D tests and capture output
+        cd spec/platforms/love2d
+        timeout 30s love . > test_output.log 2>&1
+        
+        # Check if tests ran successfully by looking for expected output
+        if grep -q "All tests passed" test_output.log || grep -q "Tests completed" test_output.log; then
+          echo "✅ Love2D integration tests passed"
+          cat test_output.log
+        else
+          echo "❌ Love2D integration tests failed or did not complete properly"
+          cat test_output.log
+          exit 1
+        fi
     
     - name: Test example module loading
       run: |

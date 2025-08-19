@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report clean install docs
+.PHONY: build test test-coverage coverage-report test-love clean install docs
 
 # Build Teal files to Lua
 build:
@@ -21,6 +21,40 @@ test-coverage: build
 	luacov
 	@# Generate test results in JUnit XML format for codecov test analytics
 	LUA_PATH="build/?.lua;build/?/init.lua;;" busted --output=junit > test-results.xml
+
+# Run Love2D tests (requires Love2D to be installed)
+test-love: build
+	@echo "Running Love2D unit tests with busted..."
+	LUA_PATH="build/?.lua;build/?/init.lua;;" busted spec/platforms/love2d/love2d_spec.lua --output=TAP
+	@echo ""
+	@echo "Running Love2D integration tests (headless)..."
+	@# Verify lua-https binary is available
+	@if [ ! -f examples/love2d/https.so ]; then \
+		echo "❌ CRITICAL: lua-https binary not found at examples/love2d/https.so"; \
+		echo "Love2D tests REQUIRE HTTPS support. Rebuild with:"; \
+		echo "cd examples/love2d/lua-https && cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\$$PWD/install && cmake --build build --target install"; \
+		exit 1; \
+	fi
+	@# Copy binary to test directory
+	cp examples/love2d/https.so spec/platforms/love2d/ || { \
+		echo "❌ Failed to copy https.so to test directory"; \
+		exit 1; \
+	}
+	@# Run Love2D integration tests
+	cd spec/platforms/love2d && timeout 30s love . > test_output.log 2>&1 || true
+	@# Validate test results
+	@if grep -q "All tests passed" spec/platforms/love2d/test_output.log; then \
+		echo "✅ Love2D integration tests passed"; \
+		cat spec/platforms/love2d/test_output.log; \
+	else \
+		echo "❌ Love2D integration tests failed or incomplete"; \
+		cat spec/platforms/love2d/test_output.log; \
+		rm -f spec/platforms/love2d/test_output.log spec/platforms/love2d/https.so; \
+		exit 1; \
+	fi
+	@# Clean up test artifacts
+	@rm -f spec/platforms/love2d/test_output.log spec/platforms/love2d/https.so
+	@echo "✅ All Love2D tests completed successfully"
 
 # Generate coverage report in LCOV format for codecov
 coverage-report: test-coverage
@@ -122,8 +156,11 @@ docker-test-redis:
 docker-test-nginx:
 	docker-compose -f docker/nginx/docker-compose.yml up --build --abort-on-container-exit
 
-# Full test suite
+# Full test suite (excludes Love2D - requires Love2D installation)
 test-all: test docker-test-redis docker-test-nginx
+
+# Full test suite including Love2D (requires Love2D to be installed)
+test-all-with-love: test test-love docker-test-redis docker-test-nginx
 
 # Serve documentation locally
 serve-docs: docs
