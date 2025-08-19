@@ -157,16 +157,11 @@ jobs:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
 
+    - run: make publish
+
     - name: Upload artifact
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ github.sha }}
-        path: |
-          README.md
-          example-event.png
-          CHANGELOG.md
-          *.rockspec
-          roblox.json
-          build/*
-          examples/*
+        path: sentry-lua-publish.zip
