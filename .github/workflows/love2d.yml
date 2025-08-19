@@ -39,8 +39,19 @@ jobs:
     - name: Install Love2D (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install love
-        love --version
+        brew install --cask love
+        # Love2D on macOS installs as an app bundle, create a local wrapper script
+        mkdir -p ~/bin
+        if [ -d "/Applications/love.app" ]; then
+          echo '#!/bin/bash' > ~/bin/love
+          echo 'exec /Applications/love.app/Contents/MacOS/love "$@"' >> ~/bin/love
+          chmod +x ~/bin/love
+          echo "$HOME/bin" >> $GITHUB_PATH
+          ~/bin/love --version
+        else
+          echo "❌ Love2D app not found at /Applications/love.app"
+          exit 1
+        fi
     
     - name: Install SSL dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
