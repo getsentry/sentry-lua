@@ -224,9 +224,8 @@ publish: build
 	@cp CHANGELOG.md publish-temp/ || { echo "❌ CHANGELOG.md not found"; exit 1; }
 	@cp *.rockspec publish-temp/ || { echo "❌ No .rockspec files found"; exit 1; }
 	@cp roblox.json publish-temp/ || { echo "❌ roblox.json not found"; exit 1; }
-	@# Copy build directory but rename build/sentry to src/sentry in the zip
-	@mkdir -p publish-temp/src
-	@cp -r build/sentry publish-temp/src/ || { echo "❌ build/sentry directory not found. Run 'make build' first."; exit 1; }
+	@# Copy build directory (recursively)
+	@cp -r build publish-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
 	@# Copy examples directory (recursively)
 	@cp -r examples publish-temp/ || { echo "❌ examples directory not found"; exit 1; }
 	@# Create zip file
