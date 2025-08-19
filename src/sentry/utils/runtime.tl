@@ -10,7 +10,7 @@ local function detect_standard_lua(): RuntimeInfo
    -- Standard Lua runtime
    local version = _VERSION or "Lua (unknown version)"
    return {
-      name = "lua",
+      name = "Lua",
       version = version:match("Lua (%d+%.%d+)") or version,
       description = version
    }
@@ -20,7 +20,7 @@ local function detect_luajit(): RuntimeInfo
    -- LuaJIT detection
    if jit and jit.version then
       return {
-         name = "luajit", 
+         name = "LuaJIT", 
          version = jit.version:match("LuaJIT (%S+)") or jit.version,
          description = jit.version
       }
@@ -36,14 +36,13 @@ local function detect_roblox(): RuntimeInfo
       -- Try to get version info if available
       if version and version ~= "" then
          return {
-            name = "luau",
+            name = "Luau",
             version = version,
             description = "Roblox Luau " .. version
          }
       else
          return {
-            name = "luau", 
-            version = "roblox",
+            name = "Luau", 
             description = "Roblox Luau"
          }
       end
@@ -86,7 +85,7 @@ local function detect_openresty(): RuntimeInfo
          version = ngx.config.ngx_lua_version
       end
       return {
-         name = "openresty",
+         name = "OpenResty",
          version = version,
          description = "OpenResty/ngx_lua " .. version
       }
