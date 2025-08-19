@@ -39,11 +39,20 @@ Replace-TextInFile "$repoRoot/roblox.json" '(?<="version": ").*?(?=")' $newVersi
 # Update README.md
 Replace-TextInFile "$repoRoot/README.md" '(?<=release = ").*?(?=")' $newVersion
 
-# Update LuaRocks file - update existing rockspec version
+# Update LuaRocks file - update existing rockspec version and rename file
 $rockspec = Get-ChildItem "$repoRoot/*.rockspec" | Select-Object -First 1
 if ($rockspec) {
     Write-Host "Updating rockspec: $($rockspec.Name)"
     Replace-TextInFile $rockspec.FullName '(?<=version = ").*?(?=")' "$newVersion-1"
+    
+    # Rename rockspec file to match new version
+    $newRockspecName = "sentry-lua-$newVersion-1.rockspec"
+    $newRockspecPath = "$repoRoot/$newRockspecName"
+    
+    if ($rockspec.Name -ne $newRockspecName) {
+        Write-Host "Renaming rockspec from $($rockspec.Name) to $newRockspecName"
+        Move-Item $rockspec.FullName $newRockspecPath
+    }
 }
 
 # Update centralized version file
