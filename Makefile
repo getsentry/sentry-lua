@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d
+.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d publish
 
 # Build Teal files to Lua
 build:
@@ -211,3 +211,29 @@ serve-docs: docs
 	@echo "Starting documentation server at http://localhost:8000"
 	@echo "Press Ctrl+C to stop"
 	python3 -m http.server 8000 --directory docs
+
+# Create publish package
+publish: build
+	@echo "Creating publish package..."
+	@rm -f sentry-lua-publish.zip
+	@# Create temporary directory for packaging
+	@mkdir -p publish-temp
+	@# Copy required files
+	@cp README.md publish-temp/ || { echo "❌ README.md not found"; exit 1; }
+	@cp example-event.png publish-temp/ || { echo "❌ example-event.png not found"; exit 1; }
+	@cp CHANGELOG.md publish-temp/ || { echo "❌ CHANGELOG.md not found"; exit 1; }
+	@cp *.rockspec publish-temp/ || { echo "❌ No .rockspec files found"; exit 1; }
+	@cp roblox.json publish-temp/ || { echo "❌ roblox.json not found"; exit 1; }
+	@# Copy build directory but rename build/sentry to src/sentry in the zip
+	@mkdir -p publish-temp/src
+	@cp -r build/sentry publish-temp/src/ || { echo "❌ build/sentry directory not found. Run 'make build' first."; exit 1; }
+	@# Copy examples directory (recursively)
+	@cp -r examples publish-temp/ || { echo "❌ examples directory not found"; exit 1; }
+	@# Create zip file
+	@cd publish-temp && zip -r ../sentry-lua-publish.zip . > /dev/null
+	@# Clean up temporary directory
+	@rm -rf publish-temp
+	@echo "✅ Publish package created: sentry-lua-publish.zip"
+	@# Show contents of the zip file
+	@echo "Package contents:"
+	@unzip -l sentry-lua-publish.zip

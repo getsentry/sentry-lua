@@ -4,9 +4,12 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - release/*
   pull_request:
-    branches: [ main ]
+    paths-ignore:
+      - "**.md"
 
 env:
   LUAJIT_2_0_VERSION: "v2.0.5"
@@ -153,3 +156,12 @@ jobs:
       with:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
+
+    - run: make publish
+
+    - name: Upload artifact
+      if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.sha }}
+        path: sentry-lua-publish.zip

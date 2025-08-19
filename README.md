@@ -14,7 +14,7 @@ A platform-agnostic Sentry SDK for Lua environments. Written in Teal Language fo
 The goal of this SDK is to be *portable* Lua code, so CI/tests run on Standard Lua, as well as LuaJIT, which can run on [Game Consoles](https://luajit.org/status.html#consoles),
 one of [Sentry's latest platform investments](https://blog.sentry.io/playstation-xbox-switch-pc-or-mobile-wherever-youve-got-bugs-to-crush-sentry/).
 
-![Screenshot of this example app](./.github/example-event.png "Example Lua error with source context, logs and trace connected")
+![Screenshot of this example app](./example-event.png "Example Lua error with source context, logs and trace connected")
 
 ## Features
 
@@ -58,7 +58,7 @@ function love.load()
     sentry.init({
         dsn = "https://your-dsn@sentry.io/project-id",
         environment = "love2d",
-        release = "game@1.0.0"
+        release = "0.0.2"
     })
     
     -- Optional: Enable logging integration
@@ -100,7 +100,7 @@ local sentry = require("sentry")
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
    environment = "production",
-   release = "0.0.1"
+   release = "0.0.2"
 })
 
 -- Capture a message
