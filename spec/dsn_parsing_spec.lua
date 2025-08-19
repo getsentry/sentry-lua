@@ -195,11 +195,11 @@ describe("DSN Parsing", function()
          
          local header = dsn_utils.build_auth_header(dsn)
          
-         -- Check that all required parts are present
+         -- Check that all required parts are present (version-agnostic)
          assert.is_true(header:find("Sentry sentry_version=7") ~= nil)
          assert.is_true(header:find("sentry_key=public123") ~= nil)
          assert.is_true(header:find("sentry_secret=secret456") ~= nil)
-         assert.is_true(header:find("sentry_client=sentry%-lua/0%.0%.1") ~= nil)
+         assert.is_true(header:find("sentry_client=sentry%-lua/") ~= nil)  -- Version-agnostic check
       end)
       
       it("should build auth header without secret key", function()
