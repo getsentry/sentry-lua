@@ -57,14 +57,19 @@ end
 -- Helper to handle GET /
 local function handle_health_check(request, response)
     local incoming_headers = extract_headers(request)
-    tracing.continue_trace_from_request(incoming_headers)
+    local context = tracing.continue_trace_from_request(incoming_headers)
     
-    local tx = performance.start_transaction("GET /", "http.server")
+    -- Start transaction with specific trace context to avoid global state issues
+    local tx = performance.start_transaction("GET /", "http.server", {
+        trace_id = context and context.trace_id,
+        parent_span_id = context and context.span_id,
+        span_id = require("sentry.tracing.headers").generate_span_id()
+    })
     
     local health = { status = "healthy", timestamp = os.time() }
     
     sentry.capture_message("Health check completed", "info")
-    performance.finish_transaction("ok")
+    tx:finish("ok")
     
     response:statusCode(200)
     response:addHeader("Content-Type", "application/json")
@@ -74,20 +79,24 @@ end
 -- Helper to handle GET /api/users
 local function handle_get_users(request, response)
     local incoming_headers = extract_headers(request)
-    tracing.continue_trace_from_request(incoming_headers)
+    local context = tracing.continue_trace_from_request(incoming_headers)
     
-    local tx = performance.start_transaction("GET /api/users", "http.server")
+    local tx = performance.start_transaction("GET /api/users", "http.server", {
+        trace_id = context and context.trace_id,
+        parent_span_id = context and context.span_id,
+        span_id = require("sentry.tracing.headers").generate_span_id()
+    })
     print("📍 Handling GET /api/users")
     
-    local db_span = performance.start_span("db.query", "SELECT * FROM users WHERE active = 1")
+    local db_span = tx:start_span("db.query", "SELECT * FROM users WHERE active = 1")
     print("  → Querying database...")
     os.execute("sleep 0.1")
-    performance.finish_span("ok")
+    db_span:finish("ok")
     
-    local cache_span = performance.start_span("cache.get", "Redis GET users_list")  
+    local cache_span = tx:start_span("cache.get", "Redis GET users_list")  
     print("  → Checking cache...")
     os.execute("sleep 0.05")
-    performance.finish_span("ok")
+    cache_span:finish("ok")
     
     local users = {
         { id = 1, name = "Alice", email = "alice@example.com" },
@@ -96,7 +105,7 @@ local function handle_get_users(request, response)
     }
     
     sentry.capture_message("Users retrieved successfully", "info")
-    performance.finish_transaction("ok")
+    tx:finish("ok")
     
     response:statusCode(200)
     response:addHeader("Content-Type", "application/json")
@@ -106,30 +115,34 @@ end
 -- Helper to handle POST /api/orders
 local function handle_create_order(request, response)
     local incoming_headers = extract_headers(request)
-    tracing.continue_trace_from_request(incoming_headers)
+    local context = tracing.continue_trace_from_request(incoming_headers)
     
-    local tx = performance.start_transaction("POST /api/orders", "http.server")
+    local tx = performance.start_transaction("POST /api/orders", "http.server", {
+        trace_id = context and context.trace_id,
+        parent_span_id = context and context.span_id,
+        span_id = require("sentry.tracing.headers").generate_span_id()
+    })
     print("📍 Handling POST /api/orders")
     
-    local validation_span = performance.start_span("validation.order", "Validate order data")
+    local validation_span = tx:start_span("validation.order", "Validate order data")
     print("  → Validating order...")
     os.execute("sleep 0.03")
-    performance.finish_span("ok")
+    validation_span:finish("ok")
     
-    local inventory_span = performance.start_span("inventory.check", "Check product availability")
+    local inventory_span = tx:start_span("inventory.check", "Check product availability")
     print("  → Checking inventory...")
     os.execute("sleep 0.08")
-    performance.finish_span("ok")
+    inventory_span:finish("ok")
     
-    local payment_span = performance.start_span("payment.process", "Process payment")
+    local payment_span = tx:start_span("payment.process", "Process payment")
     print("  → Processing payment...")
     os.execute("sleep 0.12")
-    performance.finish_span("ok")
+    payment_span:finish("ok")
     
-    local create_span = performance.start_span("db.insert", "INSERT INTO orders")
+    local create_span = tx:start_span("db.insert", "INSERT INTO orders")
     print("  → Creating order record...")
     os.execute("sleep 0.06")
-    performance.finish_span("ok")
+    create_span:finish("ok")
     
     local order = { 
         id = "ORD-" .. math.random(1000, 9999),
@@ -138,7 +151,7 @@ local function handle_create_order(request, response)
     }
     
     sentry.capture_message("Order created successfully: " .. order.id, "info")
-    performance.finish_transaction("ok")
+    tx:finish("ok")
     
     response:statusCode(201)
     response:addHeader("Content-Type", "application/json")
@@ -148,23 +161,27 @@ end
 -- Helper to handle GET /api/slow
 local function handle_slow_endpoint(request, response)
     local incoming_headers = extract_headers(request)
-    tracing.continue_trace_from_request(incoming_headers)
+    local context = tracing.continue_trace_from_request(incoming_headers)
     
-    local tx = performance.start_transaction("GET /api/slow", "http.server")
+    local tx = performance.start_transaction("GET /api/slow", "http.server", {
+        trace_id = context and context.trace_id,
+        parent_span_id = context and context.span_id,
+        span_id = require("sentry.tracing.headers").generate_span_id()
+    })
     print("📍 Handling GET /api/slow")
     
-    local external_span = performance.start_span("http.client", "External API call")
+    local external_span = tx:start_span("http.client", "External API call")
     print("  → Calling external API (slow)...")
     os.execute("sleep 0.5")
-    performance.finish_span("ok")
+    external_span:finish("ok")
     
-    local slow_db_span = performance.start_span("db.query", "Complex analytical query")
+    local slow_db_span = tx:start_span("db.query", "Complex analytical query")
     print("  → Running complex query...")
     os.execute("sleep 0.3")
-    performance.finish_span("ok")
+    slow_db_span:finish("ok")
     
     sentry.capture_message("Slow endpoint completed", "info")
-    performance.finish_transaction("ok")
+    tx:finish("ok")
     
     response:statusCode(200)
     response:addHeader("Content-Type", "application/json")
@@ -177,15 +194,19 @@ end
 -- Helper to handle GET /api/error
 local function handle_error_endpoint(request, response)
     local incoming_headers = extract_headers(request)
-    tracing.continue_trace_from_request(incoming_headers)
+    local context = tracing.continue_trace_from_request(incoming_headers)
     
-    local tx = performance.start_transaction("GET /api/error", "http.server")
+    local tx = performance.start_transaction("GET /api/error", "http.server", {
+        trace_id = context and context.trace_id,
+        parent_span_id = context and context.span_id,
+        span_id = require("sentry.tracing.headers").generate_span_id()
+    })
     print("📍 Handling GET /api/error")
     
     local work_span = performance.start_span("process.data", "Processing data")
     print("  → Processing data...")
     os.execute("sleep 0.05")
-    performance.finish_span("ok")
+    db_span:finish("ok")
     
     local error_span = performance.start_span("db.query", "Query user preferences")
     print("  → Error occurred!")
@@ -196,7 +217,7 @@ local function handle_error_endpoint(request, response)
     }, "error")
     
     performance.finish_span("internal_error")
-    performance.finish_transaction("internal_error")
+    tx:finish("internal_error")
     
     response:statusCode(500)
     response:addHeader("Content-Type", "application/json")

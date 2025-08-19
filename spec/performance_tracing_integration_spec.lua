@@ -9,23 +9,11 @@ describe("performance module tracing integration", function()
     before_each(function()
         -- Clear any existing context and transactions
         propagation.clear_context()
-        if performance.get_current_transaction then
-            local tx = performance.get_current_transaction()
-            if tx then
-                performance.finish_transaction("cancelled")
-            end
-        end
     end)
     
     after_each(function()
         -- Clean up after each test
         propagation.clear_context()
-        if performance.get_current_transaction then
-            local tx = performance.get_current_transaction()
-            if tx then
-                performance.finish_transaction("cancelled") 
-            end
-        end
     end)
     
     describe("new transaction creation", function()
@@ -46,7 +34,7 @@ describe("performance module tracing integration", function()
             assert.are.equal(transaction.trace_id, context.trace_id)
             assert.are.equal(transaction.span_id, context.span_id)
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
         
         it("should continue existing trace when propagation context exists", function()
@@ -75,7 +63,7 @@ describe("performance module tracing integration", function()
             assert.are.equal(transaction.span_id, updated_context.span_id)
             assert.are.equal(transaction.parent_span_id, updated_context.parent_span_id)
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
         
         it("should generate headers for outgoing requests during transaction", function()
@@ -89,7 +77,7 @@ describe("performance module tracing integration", function()
             assert.is_not_nil(headers["sentry-trace"]:match(transaction.trace_id))
             assert.is_not_nil(headers["sentry-trace"]:match(transaction.span_id))
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
         
         it("should maintain trace context across spans", function()
@@ -97,7 +85,7 @@ describe("performance module tracing integration", function()
             local original_trace_id = transaction.trace_id
             
             -- Start nested span
-            local span = performance.start_span("db.query", "SELECT * FROM users")
+            local span = transaction:start_span("db.query", "SELECT * FROM users")
             
             -- Trace ID should remain the same, span ID should change
             local context_during_span = propagation.get_current_context()
@@ -105,14 +93,14 @@ describe("performance module tracing integration", function()
             assert.are.equal(span.span_id, context_during_span.span_id) -- Current span is active
             assert.are.equal(transaction.span_id, span.parent_span_id) -- Transaction is parent
             
-            performance.finish_span("ok")
+            span:finish("ok")
             
             -- Context should revert to transaction after span finishes
             local context_after_span = propagation.get_current_context()
             assert.are.equal(original_trace_id, context_after_span.trace_id)
             assert.are.equal(transaction.span_id, context_after_span.span_id) -- Back to transaction
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
     end)
     
@@ -153,7 +141,7 @@ describe("performance module tracing integration", function()
             assert.is_not_nil(server_tx.parent_span_id) -- Connected through propagation context
             
             -- Server finishes its work
-            performance.finish_transaction("ok")
+            server_tx:finish("ok")
             
             -- === CLIENT SIDE CLEANUP ===
             -- Restore client context and finish client transaction
@@ -166,7 +154,7 @@ describe("performance module tracing integration", function()
                 dynamic_sampling_context = {}
             }
             propagation.set_current_context(client_context)
-            performance.finish_transaction("ok")
+            client_tx:finish("ok")
             
             -- Note: In our current implementation, the server starts a new transaction
             -- that continues the trace but creates a new transaction context.
@@ -183,7 +171,7 @@ describe("performance module tracing integration", function()
             propagation.continue_trace_from_headers(w3c_headers)
             local tx1 = performance.start_transaction("w3c_continuation", "http.server")
             assert.are.equal("75302ac48a024bde9a3b3734a82e36c8", tx1.trace_id)
-            performance.finish_transaction("ok")
+            tx1:finish("ok")
             
             -- Test sentry-trace format
             local sentry_headers = {
@@ -196,7 +184,7 @@ describe("performance module tracing integration", function()
             -- Note: The parent_span_id in our implementation will be the span_id from the 
             -- propagation context, not the original incoming span_id
             assert.is_not_nil(tx2.parent_span_id)
-            performance.finish_transaction("ok")
+            tx2:finish("ok")
         end)
     end)
     
@@ -219,7 +207,7 @@ describe("performance module tracing integration", function()
             assert.are.equal("table", type(blocked_headers))
             assert.is_nil(blocked_headers["sentry-trace"])
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
         
         it("should propagate to all targets with wildcard", function()
@@ -238,7 +226,7 @@ describe("performance module tracing integration", function()
             assert.is_not_nil(headers1["sentry-trace"]:match(transaction.trace_id))
             assert.is_not_nil(headers2["sentry-trace"]:match(transaction.trace_id))
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
     end)
     
@@ -257,7 +245,7 @@ describe("performance module tracing integration", function()
             -- With malformed headers, it creates a new trace continuation context
             assert.is_not_nil(transaction.parent_span_id)
             
-            performance.finish_transaction("ok")
+            transaction:finish("ok")
         end)
         
         it("should handle missing trace context during header generation", function()
@@ -274,10 +262,10 @@ describe("performance module tracing integration", function()
             local trace_id = transaction.trace_id
             
             -- Multiple nested spans
-            local span1 = performance.start_span("step1", "Process data")
+            local span1 = transaction:start_span("step1", "Process data")
             assert.are.equal(trace_id, span1.trace_id)
             
-            local span2 = performance.start_span("step2", "Validate data")  
+            local span2 = transaction:start_span("step2", "Validate data")  
             assert.are.equal(trace_id, span2.trace_id)
             assert.are.equal(span1.span_id, span2.parent_span_id)
             
@@ -286,9 +274,9 @@ describe("performance module tracing integration", function()
             assert.is_not_nil(headers_during_nested["sentry-trace"]:match(trace_id))
             assert.is_not_nil(headers_during_nested["sentry-trace"]:match(span2.span_id))
             
-            performance.finish_span("ok") -- span2
-            performance.finish_span("ok") -- span1
-            performance.finish_transaction("ok")
+            span2:finish("ok")
+            span1:finish("ok")
+            transaction:finish("ok")
         end)
     end)
     
@@ -302,7 +290,7 @@ describe("performance module tracing integration", function()
                 assert.is_not_nil(context)
                 assert.are.equal(tx.trace_id, context.trace_id)
                 
-                performance.finish_transaction("ok")
+                tx:finish("ok")
             end
             
             -- Context should be clean after all transactions (or have the last context)
@@ -330,9 +318,9 @@ describe("performance module tracing integration", function()
             assert.are.equal(context1.trace_id, resumed_context.trace_id)
             
             -- Clean up both
-            performance.finish_transaction("ok") -- tx1 context
+            tx1:finish("ok") -- tx1 context
             propagation.set_current_context(context2)  
-            performance.finish_transaction("ok") -- tx2 context
+            tx2:finish("ok") -- tx2 context
         end)
     end)
 end)

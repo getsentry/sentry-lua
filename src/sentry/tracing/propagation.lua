@@ -149,8 +149,8 @@ function propagation.get_trace_headers_for_request(target_url, options)
                 -- Wildcard - propagate to all targets
                 should_propagate = true
                 break
-            elseif target_url and target_url:find(target, 1, true) then
-                -- Simple substring match (plain text search)
+            elseif target_url and target_url:find(target) then
+                -- Pattern match (supports Lua patterns like example%.com)
                 should_propagate = true
                 break
             end
