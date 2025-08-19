@@ -4,10 +4,63 @@ local record StackFrame
    lineno: number
    in_app: boolean
    vars: {string:any}  -- local variables and parameters
+   abs_path: string
+   context_line: string
+   pre_context: {string}
+   post_context: {string}
 end
 
 local record StackTrace
    frames: {StackFrame}
+end
+
+-- Read source context from a file  
+local function get_source_context(filename: string, line_number: number): string, {string}, {string}
+   local empty_array: {string} = {}
+   
+   if line_number <= 0 then
+      return "", empty_array, empty_array
+   end
+   
+   -- Try to open and read the file
+   local file = io.open(filename, "r")
+   if not file then
+      return "", empty_array, empty_array
+   end
+   
+   -- Read all lines into array (using dynamic indexing to avoid Teal issues)
+   local all_lines: {any} = {}
+   local line_count = 0
+   for line in file:lines() do
+      line_count = line_count + 1
+      all_lines[line_count] = line
+   end
+   file:close()
+   
+   -- Extract context lines
+   local context_line = ""
+   local pre_context: {string} = {}
+   local post_context: {string} = {}
+   
+   if line_number > 0 and line_number <= line_count then
+      context_line = (all_lines[line_number] as string) or ""
+      
+      -- Get 5 lines before
+      for i = math.max(1, line_number - 5), line_number - 1 do
+         if i >= 1 and i <= line_count then
+            table.insert(pre_context, (all_lines[i] as string) or "")
+         end
+      end
+      
+      -- Get 5 lines after  
+      for i = line_number + 1, math.min(line_count, line_number + 5) do
+         if i >= 1 and i <= line_count then
+            table.insert(post_context, (all_lines[i] as string) or "")
+         end
+      end
+   end
+   
+   return context_line, pre_context, post_context
 end
 
 local function get_stack_trace(skip_frames: number): StackTrace
@@ -99,12 +152,19 @@ local function get_stack_trace(skip_frames: number): StackTrace
          line_number = 0
       end
       
+      -- Get source context if this is an in-app frame with valid line number
+      local context_line, pre_context, post_context = get_source_context(filename, line_number)
+      
       local frame: StackFrame = {
          filename = filename,
          ["function"] = function_name,
          lineno = line_number,
          in_app = in_app,
-         vars = vars
+         vars = vars,
+         abs_path = filename,  -- For now, same as filename
+         context_line = context_line,
+         pre_context = pre_context,
+         post_context = post_context
       }
       
       table.insert(frames, frame)
