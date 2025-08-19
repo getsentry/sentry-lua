@@ -36,6 +36,8 @@ local function get_stack_trace(skip_frames: number): StackTrace
          in_app = false  -- C function
       elseif info.source:match("sentry") then
          in_app = false  -- SDK code
+      elseif filename:match("^/opt/homebrew") then
+         in_app = false  -- Homebrew-installed libraries
       end
       
       -- Get function name with better fallback
