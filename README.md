@@ -199,32 +199,6 @@ local transaction = performance.start_transaction("api_handler", "http.server")
 -- This transaction will be part of the distributed trace
 ```
 
-### API Migration Guide
-
-The performance API has been redesigned to eliminate global state and provide better control over transaction and span lifecycle. Here's how to migrate:
-
-#### Old Global State API (Deprecated)
-```lua
--- ❌ Old way (deprecated)
-local performance = require("sentry.performance")
-
-performance.start_transaction("checkout", "http.server")
-performance.start_span("validation", "Validate cart")
-performance.finish_span("ok")
-performance.finish_transaction("ok")
-```
-
-#### New Object-Oriented API (Recommended)
-```lua
--- ✅ New way (recommended)
-local performance = require("sentry.performance")
-
-local transaction = performance.start_transaction("checkout", "http.server")
-local span = transaction:start_span("validation", "Validate cart")
-span:finish("ok")
-transaction:finish("ok")
-```
-
 **Benefits of the new API:**
 - **No global state**: Each transaction and span is explicitly managed
 - **Better control**: Clear ownership of when operations start and finish  
