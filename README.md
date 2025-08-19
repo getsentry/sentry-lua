@@ -1,5 +1,11 @@
 # Sentry SDK for Lua
 
+> NOTE: This is a hackweek project and not officially supported by Sentry.
+> Not all platforms are yet tested.
+> 
+> We accept PRs if you're willing to fix bugs and add features.
+> If there's enough interest, we could invest more into this.
+
 [![Tests](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml/badge.svg)](https://github.com/getsentry/sentry-lua/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/getsentry/sentry-lua/branch/main/graph/badge.svg)](https://codecov.io/gh/getsentry/sentry-lua)
 
