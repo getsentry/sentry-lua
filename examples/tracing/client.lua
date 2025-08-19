@@ -10,6 +10,7 @@ package.path = "src/?.lua;src/?/init.lua;platforms/?.lua;platforms/?/init.lua;bu
 
 local sentry = require("sentry")
 local tracing_platform = require("sentry.tracing.platform")
+local performance = require("sentry.performance")
 
 print("🚀 Distributed Tracing Client")
 print("============================")
@@ -156,7 +157,20 @@ local function test_endpoint(endpoint)
     print("\n📍 Testing endpoint: " .. endpoint)
     print("---" .. string.rep("-", #endpoint + 18))
     
-    -- Create child span for this request
+    -- Start transaction for this HTTP request
+    local transaction = performance.start_transaction({
+        name = "GET " .. endpoint,
+        op = "http.client",
+        description = "Client HTTP request",
+        tags = {
+            ["http.method"] = "GET",
+            ["http.url"] = endpoint
+        }
+    })
+    
+    print("   🏁 Started transaction: " .. transaction.event_id)
+    
+    -- Create child span for this request  
     local request_context = tracing.create_child()
     local trace_info = tracing.get_current_trace_info()
     
@@ -167,11 +181,27 @@ local function test_endpoint(endpoint)
     end
     
     local url = SERVER_BASE .. endpoint
+    
+    -- Start HTTP request span
+    local http_span = performance.start_span(transaction, {
+        op = "http.request",
+        description = "GET " .. url,
+        tags = {
+            ["http.method"] = "GET",
+            ["http.url"] = url
+        }
+    })
+    print("   📡 HTTP request span: " .. http_span.span_id)
+    
     local start_time = os.clock()
     
     -- Make the request
     local success, response, error_msg = make_http_request(url)
     local duration_ms = math.floor((os.clock() - start_time) * 1000)
+    
+    -- Finish HTTP request span
+    performance.finish_span(http_span)
+    print("   ✅ HTTP request completed in " .. duration_ms .. "ms")
     
     if success and response then
         print("   📥 Response: HTTP " .. response.status .. " (" .. duration_ms .. "ms)")
@@ -258,6 +288,15 @@ local function test_endpoint(endpoint)
             }
         })
     end
+    
+    -- Finish the transaction
+    local transaction_end_time = os.clock()
+    performance.finish_transaction(transaction)
+    print("   🏁 Finished transaction: " .. transaction.event_id)
+    
+    -- Calculate total duration (approximate)
+    local total_duration_ms = math.floor((transaction_end_time - start_time) * 1000)
+    print("   ⏱️  Total request time: " .. total_duration_ms .. "ms")
     
     return success, response
 end

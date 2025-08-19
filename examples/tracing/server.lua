@@ -10,6 +10,7 @@ package.path = "src/?.lua;src/?/init.lua;platforms/?.lua;platforms/?/init.lua;bu
 
 local sentry = require("sentry")
 local tracing_platform = require("sentry.tracing.platform")
+local performance = require("sentry.performance")
 
 print("🚀 Distributed Tracing Server")
 print("============================")
@@ -176,6 +177,19 @@ else
         print("─────────────────────────────────────────────────────────")
         print("📥 [" .. timestamp .. "] " .. method .. " " .. path)
         
+        -- Start transaction for this HTTP request
+        local transaction = performance.start_transaction({
+            name = method .. " " .. path,
+            op = "http.server",
+            description = "HTTP request processing",
+            tags = {
+                ["http.method"] = method,
+                ["http.url"] = path
+            }
+        })
+        
+        print("   🏁 Started transaction: " .. transaction.event_id)
+        
         -- Trace is automatically continued by the instrumented server
         local trace_info = tracing.get_current_trace_info()
         
@@ -226,9 +240,26 @@ else
         elseif path == "/api/users" then
             print("   ⚙️  Fetching users...")
             
-            -- Simulate database operation with child span
-            local child_context = tracing.create_child()
-            print("   📊 Database span: " .. child_context.span_id)
+            -- Start database span
+            local db_span = performance.start_span(transaction, {
+                op = "db.query",
+                description = "SELECT * FROM users LIMIT 10",
+                tags = {
+                    ["db.system"] = "postgresql",
+                    ["db.operation"] = "select"
+                }
+            })
+            print("   📊 Database span: " .. db_span.span_id)
+            
+            -- Simulate database work
+            local start_time = os.clock()
+            for i = 1, 50000 do
+                local _ = math.sin(i) -- Simulate DB processing
+            end
+            local db_duration_ms = math.floor((os.clock() - start_time) * 1000)
+            
+            performance.finish_span(db_span)
+            print("   ✅ Database query completed in " .. db_duration_ms .. "ms")
             
             sentry.add_breadcrumb({
                 message = "Database query: SELECT * FROM users LIMIT 10",
@@ -236,7 +267,8 @@ else
                 level = "debug",
                 data = {
                     query = "SELECT * FROM users LIMIT 10",
-                    duration_ms = 45
+                    duration_ms = db_duration_ms,
+                    span_id = db_span.span_id
                 }
             })
             
@@ -247,7 +279,7 @@ else
                     {id = 3, name = "Carol", email = "carol@example.com"}
                 },
                 trace_id = trace_info and trace_info.trace_id or "none",
-                database_span_id = child_context.span_id
+                database_span_id = db_span.span_id
             }
             
         elseif path == "/api/data" then
@@ -286,6 +318,16 @@ else
         elseif path == "/api/slow" then
             print("   ⏳ Simulating slow operation...")
             
+            -- Start processing span for slow operation
+            local slow_span = performance.start_span(transaction, {
+                op = "processing",
+                description = "Heavy computation simulation",
+                tags = {
+                    ["operation.type"] = "cpu_intensive"
+                }
+            })
+            print("   🐌 Slow processing span: " .. slow_span.span_id)
+            
             -- Simulate slow operation
             local start_time = os.clock()
             
@@ -297,13 +339,17 @@ else
             
             local duration_ms = math.floor((os.clock() - start_time) * 1000)
             
+            performance.finish_span(slow_span)
+            print("   ✅ Slow operation completed in " .. duration_ms .. "ms")
+            
             sentry.add_breadcrumb({
                 message = "Slow operation completed",
                 category = "performance",
                 level = "warning",
                 data = {
                     duration_ms = duration_ms,
-                    operation = "slow_processing"
+                    operation = "slow_processing",
+                    span_id = slow_span.span_id
                 }
             })
             
@@ -363,6 +409,12 @@ else
         }
         
         response:write(json.encode(response_data))
+        
+        -- Finish the transaction
+        performance.finish_transaction(transaction)
+        print("   🏁 Finished transaction: " .. transaction.event_id)
+        
+        -- Transaction duration is tracked internally by the performance monitoring
     end)
 end
 

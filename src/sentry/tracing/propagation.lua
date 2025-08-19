@@ -145,7 +145,12 @@ function propagation.get_trace_headers_for_request(target_url, options)
     if options.trace_propagation_targets then
         should_propagate = false
         for _, target in ipairs(options.trace_propagation_targets) do
-            if target_url and target_url:match(target) then
+            if target == "*" then
+                -- Wildcard - propagate to all targets
+                should_propagate = true
+                break
+            elseif target_url and target_url:find(target, 1, true) then
+                -- Simple substring match (plain text search)
                 should_propagate = true
                 break
             end

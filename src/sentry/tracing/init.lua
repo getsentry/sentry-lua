@@ -8,9 +8,19 @@ local tracing = {}
 local headers = require("sentry.tracing.headers")
 local propagation = require("sentry.tracing.propagation")
 
+-- Load performance monitoring if available
+local performance = nil
+local has_performance, perf_module = pcall(require, "sentry.performance")
+if has_performance then
+    performance = perf_module
+end
+
 -- Re-export core functionality
 tracing.headers = headers
 tracing.propagation = propagation
+if performance then
+    tracing.performance = performance
+end
 
 ---Configuration for tracing behavior
 ---@class TracingConfig
@@ -71,6 +81,60 @@ end
 function tracing.start_trace(options)
     local context = propagation.start_new_trace(options)
     return propagation.get_trace_context_for_event()
+end
+
+---Start a new transaction with performance timing
+---@param name string Transaction name
+---@param op string Operation type (e.g., "http.server", "navigation")  
+---@param options table? Additional options
+---@return table transaction The started transaction
+function tracing.start_transaction(name, op, options)
+    options = options or {}
+    
+    -- If performance monitoring is available, use it
+    if performance then
+        -- Get current trace context for transaction
+        local trace_context = propagation.get_current_context()
+        if trace_context then
+            options.trace_id = trace_context.trace_id
+            options.parent_span_id = trace_context.span_id
+        end
+        
+        return performance.start_transaction(name, op, options)
+    end
+    
+    -- Fallback: just start a trace without performance timing
+    return tracing.start_trace(options)
+end
+
+---Finish the current transaction
+---@param status string? Final status (default: "ok")
+function tracing.finish_transaction(status)
+    if performance then
+        performance.finish_transaction(status)
+    end
+end
+
+---Start a span within the current transaction
+---@param op string Operation type (e.g., "db.query", "http.client")
+---@param description string Span description
+---@param options table? Additional options
+---@return table span The started span
+function tracing.start_span(op, description, options)
+    if performance then
+        return performance.start_span(op, description, options)
+    end
+    
+    -- Fallback: create child context without timing
+    return tracing.create_child(options)
+end
+
+---Finish the most recent span
+---@param status string? Final status (default: "ok")
+function tracing.finish_span(status)
+    if performance then
+        performance.finish_span(status)
+    end
 end
 
 ---Create a child span/operation (returns new context but doesn't change current)

@@ -79,6 +79,13 @@ local function build_ingest_url(dsn: DSN): string
       dsn.project_id)
 end
 
+local function build_envelope_url(dsn: DSN): string
+   return string.format("%s://%s/api/%s/envelope/", 
+      dsn.protocol, 
+      dsn.host, 
+      dsn.project_id)
+end
+
 local function build_auth_header(dsn: DSN): string
    local auth_parts = {
       "Sentry sentry_version=7",
@@ -97,6 +104,7 @@ end
 return {
    parse_dsn = parse_dsn,
    build_ingest_url = build_ingest_url,
+   build_envelope_url = build_envelope_url,
    build_auth_header = build_auth_header,
    DSN = DSN
 }

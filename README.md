@@ -63,6 +63,65 @@ if not success then
 end
 ```
 
+## Distributed Tracing
+
+The Sentry Lua SDK supports distributed tracing for performance monitoring across service boundaries. Traces help you understand the performance characteristics of your application and identify bottlenecks.
+
+### Requirements
+
+For the distributed tracing examples, you'll need additional dependencies:
+
+```bash
+luarocks install pegasus    # HTTP server framework
+luarocks install luasocket  # HTTP client library
+```
+
+### Basic Tracing
+
+```lua
+local sentry = require("sentry")
+local performance = require("sentry.performance")
+
+sentry.init({
+   dsn = "https://your-dsn@sentry.io/project-id"
+})
+
+-- Start a transaction
+local transaction = performance.start_transaction("user_checkout", "http.server")
+
+-- Add spans for different operations
+local validation_span = performance.start_span("validation", "Validate cart")
+-- ... validation logic ...
+performance.finish_span("ok")
+
+local payment_span = performance.start_span("payment.charge", "Process payment")
+-- ... payment logic ...
+performance.finish_span("ok")
+
+-- Finish the transaction
+performance.finish_transaction("ok")
+```
+
+### Distributed Tracing Examples
+
+The SDK includes complete examples demonstrating distributed tracing:
+
+- `examples/tracing_basic.lua` - Basic tracing concepts with transactions and spans
+- `examples/tracing_server.lua` - HTTP server with distributed tracing endpoints
+- `examples/tracing_client.lua` - HTTP client that propagates trace context
+
+To see distributed tracing in action:
+
+1. Start the server: `lua examples/tracing_server.lua`
+2. In another terminal, run the client: `lua examples/tracing_client.lua`
+3. Check your Sentry dashboard to see connected traces across both processes
+
+The examples demonstrate:
+- Automatic trace context propagation via HTTP headers
+- Nested spans showing operation hierarchy and timing  
+- Error correlation within distributed traces
+- Performance monitoring across service boundaries
+
 ## Automatic Error Capture
 
 For automatic capture of unhandled errors, use `sentry.wrap()` to wrap your main application function:
