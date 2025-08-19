@@ -4,9 +4,12 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - release/*
   pull_request:
-    branches: [ main ]
+    paths-ignore:
+      - "**.md"
 
 env:
   LUAJIT_2_0_VERSION: "v2.0.5"
