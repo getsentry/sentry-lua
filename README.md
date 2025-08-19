@@ -38,6 +38,51 @@ luarocks install sentry/sentry
 ### Roblox
 Import the module through the Roblox package system or use the pre-built releases.
 
+### LÖVE 2D
+The SDK automatically detects the Love2D environment and uses `love.thread` for asynchronous HTTP requests. Simply copy the SDK files into your Love2D project:
+
+```lua
+-- main.lua
+local sentry = require("sentry")
+local logger = require("sentry.logger")
+
+function love.load()
+    sentry.init({
+        dsn = "https://your-dsn@sentry.io/project-id",
+        environment = "love2d",
+        release = "game@1.0.0"
+    })
+    
+    -- Optional: Enable logging integration
+    logger.init({
+        enable_logs = true,
+        max_buffer_size = 10,
+        flush_timeout = 5.0
+    })
+end
+
+function love.update(dt)
+    -- Flush transport periodically
+    if sentry._client and sentry._client.transport then
+        sentry._client.transport:flush()
+    end
+end
+
+function love.quit()
+    -- Clean shutdown
+    if sentry._client and sentry._client.transport then
+        sentry._client.transport:close()
+    end
+end
+```
+
+**Note**: Love2D support requires `luasocket` for HTTP requests. Install with:
+```bash
+luarocks install luasocket
+```
+
+See `examples/love2d/` for a complete interactive demo with error triggering and visual feedback.
+
 ## Quick Start
 
 ```lua
