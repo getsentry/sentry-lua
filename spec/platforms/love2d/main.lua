@@ -118,8 +118,8 @@ local function test_sentry_initialization()
     -- Verify Love2D transport is selected
     local transport_name = "unknown"
     if sentry._client.transport then
-        -- Check if it's the Love2D transport by testing method existence
-        if sentry._client.transport.flush and sentry._client.transport.close then
+        -- Check if it's the Love2D transport by testing clean API methods
+        if sentry.flush and sentry.close then
             transport_name = "love2d"
         end
     end
@@ -252,8 +252,8 @@ function love.update(dt)
     -- Flush transports periodically
     if love.timer.getTime() - test_results.start_time > 0.5 then
         local sentry = package.loaded.sentry
-        if sentry and sentry._client and sentry._client.transport and sentry._client.transport.flush then
-            sentry._client.transport:flush()
+        if sentry and sentry.flush then
+            sentry.flush()
         end
         
         local logger = package.loaded["sentry.logger"]

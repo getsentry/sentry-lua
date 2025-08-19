@@ -63,16 +63,12 @@ end
 
 function love.update(dt)
     -- Flush transport periodically
-    if sentry._client and sentry._client.transport then
-        sentry._client.transport:flush()
-    end
+    sentry.flush()
 end
 
 function love.quit()
     -- Clean shutdown
-    if sentry._client and sentry._client.transport then
-        sentry._client.transport:close()
-    end
+    sentry.close()
 end
 ```
 
@@ -113,7 +109,27 @@ if not success then
       message = err
    })
 end
+
+-- Flush pending events immediately
+sentry.flush()
+
+-- Clean shutdown
+sentry.close()
 ```
+
+## API Reference
+
+- `sentry.init(config)` - Initialize the Sentry client with configuration
+- `sentry.capture_message(message, level)` - Capture a log message  
+- `sentry.capture_exception(exception, level)` - Capture an exception
+- `sentry.set_user(user)` - Set user context
+- `sentry.set_tag(key, value)` - Add a tag for filtering
+- `sentry.set_extra(key, value)` - Add extra debugging information
+- `sentry.add_breadcrumb(breadcrumb)` - Add a breadcrumb for debugging context
+- `sentry.flush()` - Force immediate sending of pending events
+- `sentry.close()` - Clean shutdown of the Sentry client
+- `sentry.with_scope(callback)` - Execute code with isolated scope
+- `sentry.wrap(main_function, error_handler)` - Wrap function with error handling
 
 ## Distributed Tracing
 

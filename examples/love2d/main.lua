@@ -155,9 +155,7 @@ function love.update(dt)
     end
     
     -- Flush Sentry transport periodically
-    if sentry._client and sentry._client.transport and sentry._client.transport.flush then
-        sentry._client.transport:flush()
-    end
+    sentry.flush()
     
     -- Flush logger periodically
     if math.floor(love.timer.getTime()) % 3 == 0 then
@@ -287,9 +285,7 @@ function love.keypressed(key)
         logger.info("Application shutting down")
         logger.flush()
         
-        if sentry._client and sentry._client.transport and sentry._client.transport.close then
-            sentry._client.transport:close()
-        end
+        sentry.close()
         
         love.event.quit()
     elseif key == "r" then
@@ -321,9 +317,7 @@ function love.quit()
     logger.info("Love2D application quit")
     logger.flush()
     
-    if sentry._client and sentry._client.transport and sentry._client.transport.close then
-        sentry._client.transport:close()
-    end
+    sentry.close()
     
     return false -- Allow quit to proceed
 end
