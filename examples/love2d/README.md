@@ -2,6 +2,9 @@
 
 This example demonstrates how to integrate the Sentry Lua SDK with a Love2D game.
 
+![Screenshot of this example app](./example-app.png "LÖVE Example App")
+
+
 ## Features
 
 - **Love2D Transport**: Uses `love.thread` for asynchronous HTTP requests

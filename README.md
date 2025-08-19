@@ -400,6 +400,14 @@ The `sentry.wrap()` approach automatically includes all your Sentry context (use
 
 See `examples/wrap_demo.lua` for a complete demonstration.
 
+## Examples
+
+There are several [examples in this repository](/examples/).
+
+For example, the LÖVE framework example app:
+
+![Screenshot of this example app](./examples/love2d/example-app.png "LÖVE Example App")
+
 ## Development
 
 ### Prerequisites
