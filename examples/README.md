@@ -24,6 +24,18 @@ Demonstrates automatic error capture using `sentry.wrap()`:
 
 **Run:** `lua examples/wrap_demo.lua`
 
+### `logging.lua`
+Comprehensive logging functionality demonstration:
+- Structured logging at different severity levels
+- Parameterized messages with template support
+- Additional attributes for rich context
+- Automatic print statement capture with recursion protection
+- Log correlation with distributed traces
+- Log filtering and modification hooks
+- Batching and buffer management
+
+**Run:** `lua examples/logging.lua`
+
 ## Distributed Tracing Examples
 
 **Requirements:** Install dependencies first:

@@ -1,5 +1,5 @@
 ---@class sentry.utils.envelope
---- Envelope formatting utilities for Sentry transactions and performance data
+--- Envelope formatting utilities for Sentry transactions, performance data, and logs
 
 local json = require("sentry.utils.json")
 
@@ -28,7 +28,7 @@ local function build_transaction_envelope(transaction: table, event_id: string):
    }
    
    -- Build envelope: header + newline + item header + newline + payload
-   local envelope_parts = {
+   local envelope_parts: {string} = {
       json.encode(envelope_header),
       json.encode(item_header),
       transaction_json
@@ -37,6 +37,48 @@ local function build_transaction_envelope(transaction: table, event_id: string):
    return table.concat(envelope_parts, "\n")
 end
 
+---Build an envelope for log records
+---@param log_records table Array of log records
+---@return string envelope_body The formatted envelope body
+local function build_log_envelope(log_records: {any}): string
+   if not log_records or #log_records == 0 then
+      return ""
+   end
+   
+   -- Get current timestamp in RFC 3339 format
+   local sent_at: string = os.date("!%Y-%m-%dT%H:%M:%SZ") or ""
+   
+   -- Envelope header
+   local envelope_header: {string: any} = {
+      sent_at = sent_at
+   }
+   
+   -- Build log items array (all logs in a single envelope item)
+   local log_items: {string: any} = {
+      items = log_records
+   }
+   
+   -- Log JSON payload
+   local log_json: string = json.encode(log_items)
+   
+   -- Item header for log envelope
+   local item_header: {string: any} = {
+      type = "log",
+      item_count = #log_records,
+      content_type = "application/vnd.sentry.items.log+json"
+   }
+   
+   -- Build envelope: header + newline + item header + newline + payload
+   local envelope_parts: {string} = {
+      json.encode(envelope_header),
+      json.encode(item_header),
+      log_json
+   }
+   
+   return table.concat(envelope_parts, "\n")
+end
+
 return {
-   build_transaction_envelope = build_transaction_envelope
+   build_transaction_envelope = build_transaction_envelope,
+   build_log_envelope = build_log_envelope
 }

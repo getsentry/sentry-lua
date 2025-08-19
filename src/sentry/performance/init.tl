@@ -61,6 +61,13 @@ local function get_timestamp(): number
    return os.time() + (os.clock() % 1)
 end
 
+---Get SDK version from central location
+---@return string version SDK version or "unknown"
+local function get_sdk_version(): string
+   local success, version = pcall(require, "sentry.version")
+   return success and version or "unknown"
+end
+
 ---Span methods (defined first since transaction methods reference it)
 local span_mt = {}
 span_mt.__index = span_mt
@@ -94,7 +101,7 @@ function transaction_mt:finish(status: string)
       platform = "lua",
       sdk = {
          name = "sentry.lua",
-         version = "0.0.1"
+         version = get_sdk_version()
       }
    }
    
@@ -118,12 +125,7 @@ function transaction_mt:finish(status: string)
          if transport_success then
             print("[Sentry] Transaction sent: " .. self.event_id)
          else
-            local fallback_success, fallback_err = sentry._client.transport:send(transaction_data)
-            if fallback_success then
-               print("[Sentry] Transaction sent: " .. self.event_id)
-            else
-               print("[Sentry] Failed to send transaction: " .. tostring(fallback_err or err))
-            end
+            print("[Sentry] Failed to send transaction: " .. tostring(err))
          end
       end
    end

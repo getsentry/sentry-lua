@@ -15,6 +15,7 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 - **Comprehensive**: Error tracking, breadcrumbs, context management, and scoped operations
 - **Performance Monitoring**: Object-oriented API for transactions and spans with distributed tracing
 - **Distributed Tracing**: Automatic trace propagation across service boundaries via HTTP headers
+- **Structured Logging**: Built-in logging with batching, print hooks, and trace correlation
 - **Extensible**: Pluggable transport system for different environments
 
 ## Supported Platforms
@@ -67,7 +68,9 @@ end
 
 ## Distributed Tracing
 
-The Sentry Lua SDK supports distributed tracing for performance monitoring across service boundaries. Traces help you understand the performance characteristics of your application and identify bottlenecks.
+The Sentry Lua SDK supports distributed tracing to improve debuggability across app and service boundaries.
+Traces let you see how telemetry (errors/events, logs, etc) from different processes links together, making it easier to follow execution paths and uncover issues.
+In addition, through spans, they highlight performance characteristics of your application, helping you detect and resolve bottlenecks.
 
 ### Requirements
 
@@ -228,6 +231,114 @@ transaction:finish("ok")
 - **Proper nesting**: Spans automatically inherit from their parent transaction/span
 - **Type safety**: Full Teal type definitions for all methods
 - **Easier debugging**: No hidden global state to track
+
+## Structured Logging
+
+The Sentry Lua SDK provides comprehensive logging capabilities with automatic batching, trace correlation, and print statement capture.
+
+### Basic Logging
+
+```lua
+local sentry = require("sentry")
+local logger = require("sentry.logger")
+
+sentry.init({
+   dsn = "https://your-dsn@sentry.io/project-id",
+   _experiments = {
+      enable_logs = true,
+      hook_print = true  -- Automatically capture print() calls
+   }
+})
+
+-- Initialize logger
+logger.init({
+   enable_logs = true,
+   max_buffer_size = 100,
+   flush_timeout = 5.0,
+   hook_print = true
+})
+
+-- Log at different levels
+logger.trace("Fine-grained debugging information")
+logger.debug("Debugging information")
+logger.info("General information")
+logger.warn("Warning message")
+logger.error("Error occurred")
+logger.fatal("Critical failure")
+```
+
+### Structured Logging with Parameters
+
+```lua
+-- Parameterized messages for better searchability
+local user_id = "user_123"
+local order_id = "order_456"
+
+logger.info("User %s placed order %s", {user_id, order_id})
+logger.error("Payment failed for user %s with error %s", {user_id, "CARD_DECLINED"})
+
+-- With additional attributes
+logger.info("Order completed successfully", {user_id, order_id}, {
+   order_total = 149.99,
+   payment_method = "credit_card",
+   shipping_type = "express",
+   processing_time = 1.2
+})
+```
+
+### Automatic Print Capture
+
+```lua
+-- These print statements are automatically captured as logs
+print("Application started")  -- Becomes info-level log
+print("Debug:", user_id, order_id)  -- Multiple arguments handled
+
+-- No infinite loops - Sentry's own print statements are ignored
+```
+
+### Log Correlation with Traces
+
+```lua
+local transaction = performance.start_transaction("checkout", "business_process")
+
+-- Logs within transactions are automatically correlated
+logger.info("Starting checkout process")
+
+local span = transaction:start_span("validation", "Validate cart")
+logger.debug("Validating cart for user %s", {user_id})
+span:finish("ok")
+
+logger.warn("Payment processor slow: %sms", {2100})
+transaction:finish("ok")
+
+-- All logs will have trace_id linking them to the transaction
+```
+
+### Advanced Configuration
+
+```lua
+logger.init({
+   enable_logs = true,
+   max_buffer_size = 50,     -- Batch up to 50 logs
+   flush_timeout = 10.0,     -- Flush every 10 seconds
+   hook_print = true,        -- Capture print statements
+   
+   before_send_log = function(log_record)
+      -- Filter sensitive information
+      if log_record.body:find("password") then
+         return nil  -- Don't send this log
+      end
+      
+      -- Add custom attributes
+      log_record.attributes["custom_field"] = {
+         value = "custom_value",
+         type = "string"
+      }
+      
+      return log_record
+   end
+})
+```
 
 ## Automatic Error Capture
 
