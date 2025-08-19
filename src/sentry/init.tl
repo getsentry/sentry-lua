@@ -3,6 +3,17 @@ local Scope = require("sentry.core.scope")
 
 local record Sentry
    _client: Client
+   init: function(table): Client
+   capture_message: function(string, string): string  
+   capture_exception: function(table, string): string
+   add_breadcrumb: function(table)
+   set_user: function(table)
+   set_tag: function(string, string)
+   set_extra: function(string, any)
+   flush: function()
+   close: function()
+   with_scope: function(function(Scope))
+   wrap: function(function, function): boolean, any
 end
 
 local sentry: Sentry = {}
@@ -53,6 +64,15 @@ end
 local function set_extra(key: string, value: any)
    if sentry._client then
       sentry._client:set_extra(key, value)
+   end
+end
+
+local function flush()
+   if sentry._client and sentry._client.transport then
+      -- Call flush method if available
+      pcall(function() 
+         (sentry._client.transport as any):flush() 
+      end)
    end
 end
 
@@ -122,6 +142,7 @@ sentry.add_breadcrumb = add_breadcrumb
 sentry.set_user = set_user
 sentry.set_tag = set_tag
 sentry.set_extra = set_extra
+sentry.flush = flush
 sentry.close = close
 sentry.with_scope = with_scope
 sentry.wrap = wrap

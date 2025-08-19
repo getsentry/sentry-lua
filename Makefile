@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report clean install docs
+.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d
 
 # Build Teal files to Lua
 build:
@@ -21,6 +21,46 @@ test-coverage: build
 	luacov
 	@# Generate test results in JUnit XML format for codecov test analytics
 	LUA_PATH="build/?.lua;build/?/init.lua;;" busted --output=junit > test-results.xml
+
+# Run Love2D tests (requires Love2D to be installed)
+test-love: build
+	@echo "Running Love2D unit tests with busted..."
+	LUA_PATH="build/?.lua;build/?/init.lua;;" busted spec/platforms/love2d/love2d_spec.lua --output=TAP
+	@echo ""
+	@echo "Running Love2D integration tests (headless)..."
+	@# Verify lua-https binary is available
+	@if [ ! -f examples/love2d/https.so ]; then \
+		echo "❌ CRITICAL: lua-https binary not found at examples/love2d/https.so"; \
+		echo "Love2D tests REQUIRE HTTPS support. Rebuild with:"; \
+		echo "cd examples/love2d/lua-https && cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\$$PWD/install && cmake --build build --target install"; \
+		exit 1; \
+	fi
+	@# Copy binary to test directory
+	cp examples/love2d/https.so spec/platforms/love2d/ || { \
+		echo "❌ Failed to copy https.so to test directory"; \
+		exit 1; \
+	}
+	@# Run Love2D integration tests with cross-platform timeout and virtual display
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		echo "Running Love2D tests on macOS (no timeout command available)"; \
+		cd spec/platforms/love2d && love . > test_output.log 2>&1 || true; \
+	else \
+		echo "Running Love2D tests with virtual display on Linux"; \
+		cd spec/platforms/love2d && xvfb-run -a -s "-screen 0 1x1x24" timeout 30s love . > test_output.log 2>&1 || true; \
+	fi
+	@# Validate test results
+	@if grep -q "All tests passed" spec/platforms/love2d/test_output.log; then \
+		echo "✅ Love2D integration tests passed"; \
+		cat spec/platforms/love2d/test_output.log; \
+	else \
+		echo "❌ Love2D integration tests failed or incomplete"; \
+		cat spec/platforms/love2d/test_output.log; \
+		rm -f spec/platforms/love2d/test_output.log spec/platforms/love2d/https.so; \
+		exit 1; \
+	fi
+	@# Clean up test artifacts
+	@rm -f spec/platforms/love2d/test_output.log spec/platforms/love2d/https.so
+	@echo "✅ All Love2D tests completed successfully"
 
 # Generate coverage report in LCOV format for codecov
 coverage-report: test-coverage
@@ -122,8 +162,49 @@ docker-test-redis:
 docker-test-nginx:
 	docker-compose -f docker/nginx/docker-compose.yml up --build --abort-on-container-exit
 
-# Full test suite
+# Full test suite (excludes Love2D - requires Love2D installation)
 test-all: test docker-test-redis docker-test-nginx
+
+# Install Love2D (platform-specific)
+install-love2d:
+	@echo "Installing Love2D..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		echo "Installing Love2D on macOS..."; \
+		if ! command -v love > /dev/null 2>&1; then \
+			if command -v brew > /dev/null 2>&1; then \
+				brew install --cask love; \
+			else \
+				echo "❌ Homebrew not found. Please install Homebrew first."; \
+				exit 1; \
+			fi; \
+		else \
+			echo "✅ Love2D already installed: $$(love --version)"; \
+		fi; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		echo "Installing Love2D and virtual display on Linux..."; \
+		if ! command -v love > /dev/null 2>&1; then \
+			if command -v apt-get > /dev/null 2>&1; then \
+				sudo add-apt-repository -y ppa:bartbes/love-stable; \
+				sudo apt-get update; \
+				sudo apt-get install -y love; \
+			else \
+				echo "❌ apt-get not found. Please install Love2D manually."; \
+				exit 1; \
+			fi; \
+		else \
+			echo "✅ Love2D already installed: $$(love --version)"; \
+		fi; \
+	else \
+		echo "❌ Unsupported platform: $$(uname)"; \
+		exit 1; \
+	fi
+	@echo "✅ Love2D installation complete"
+
+# CI target for Love2D - install Love2D and run tests
+ci-love2d: install-love2d build test-love
+
+# Full test suite including Love2D (requires Love2D to be installed)
+test-all-with-love: test test-love docker-test-redis docker-test-nginx
 
 # Serve documentation locally
 serve-docs: docs

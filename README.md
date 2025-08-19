@@ -44,6 +44,51 @@ luarocks install sentry/sentry
 ### Roblox
 Import the module through the Roblox package system or use the pre-built releases.
 
+### LÖVE 2D
+The SDK automatically detects the Love2D environment and uses the lua-https module for reliable HTTPS transport. Simply copy the SDK files into your Love2D project:
+
+```lua
+-- main.lua
+local sentry = require("sentry")
+local logger = require("sentry.logger")
+
+function love.load()
+    sentry.init({
+        dsn = "https://your-dsn@sentry.io/project-id",
+        environment = "love2d",
+        release = "game@1.0.0"
+    })
+    
+    -- Optional: Enable logging integration
+    logger.init({
+        enable_logs = true,
+        max_buffer_size = 10,
+        flush_timeout = 5.0
+    })
+end
+
+function love.update(dt)
+    -- Flush transport periodically
+    sentry.flush()
+end
+
+function love.quit()
+    -- Clean shutdown
+    sentry.close()
+end
+```
+
+**HTTPS Support**: The Love2D example includes a pre-compiled `https.so` binary from [lua-https](https://github.com/love2d/lua-https) for reliable SSL/TLS support. This binary is committed to the repository for convenience. If you need to rebuild it for your platform:
+
+```bash
+cd examples/love2d/lua-https
+cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install
+cmake --build build --target install
+# Copy install/https.so to your Love2D project
+```
+
+See `examples/love2d/` for a complete interactive demo with error triggering and visual feedback.
+
 ## Quick Start
 
 ```lua
@@ -70,7 +115,27 @@ if not success then
       message = err
    })
 end
+
+-- Flush pending events immediately
+sentry.flush()
+
+-- Clean shutdown
+sentry.close()
 ```
+
+## API Reference
+
+- `sentry.init(config)` - Initialize the Sentry client with configuration
+- `sentry.capture_message(message, level)` - Capture a log message  
+- `sentry.capture_exception(exception, level)` - Capture an exception
+- `sentry.set_user(user)` - Set user context
+- `sentry.set_tag(key, value)` - Add a tag for filtering
+- `sentry.set_extra(key, value)` - Add extra debugging information
+- `sentry.add_breadcrumb(breadcrumb)` - Add a breadcrumb for debugging context
+- `sentry.flush()` - Force immediate sending of pending events
+- `sentry.close()` - Clean shutdown of the Sentry client
+- `sentry.with_scope(callback)` - Execute code with isolated scope
+- `sentry.wrap(main_function, error_handler)` - Wrap function with error handling
 
 ## Distributed Tracing
 
@@ -360,6 +425,14 @@ local success, result = sentry.wrap(main, custom_error_handler)
 The `sentry.wrap()` approach automatically includes all your Sentry context (user data, tags, breadcrumbs) with captured errors, making it much simpler than manually wrapping every error-prone operation with `pcall`/`xpcall`.
 
 See `examples/wrap_demo.lua` for a complete demonstration.
+
+## Examples
+
+There are several [examples in this repository](/examples/).
+
+For example, the LÖVE framework example app:
+
+![Screenshot of this example app](./examples/love2d/example-app.png "LÖVE Example App")
 
 ## Development
 
