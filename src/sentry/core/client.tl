@@ -60,6 +60,17 @@ function Client:new(options: SentryOptions): Client
       client.scope:set_context("os", os_context)
    end
    
+   -- Install Love2D error handler integration if in Love2D environment
+   if runtime_info.name == "love2d" and (_G as any).love then
+      local ok, love2d_integration = pcall(require, "sentry.platforms.love2d.integration")
+      if ok then
+         local integration = love2d_integration.setup_love2d_integration()
+         integration:install_error_handler(client)
+         -- Store integration reference for potential cleanup
+         client.love2d_integration = integration
+      end
+   end
+   
    return client
 end
 

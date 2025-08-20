@@ -54,6 +54,7 @@ build = {
       ["sentry.platforms.defold.file_io"] = "build/sentry/platforms/defold/file_io.lua",
       ["sentry.platforms.defold.transport"] = "build/sentry/platforms/defold/transport.lua",
       ["sentry.platforms.love2d.context"] = "build/sentry/platforms/love2d/context.lua",
+      ["sentry.platforms.love2d.integration"] = "build/sentry/platforms/love2d/integration.lua",
       ["sentry.platforms.love2d.os_detection"] = "build/sentry/platforms/love2d/os_detection.lua",
       ["sentry.platforms.love2d.transport"] = "build/sentry/platforms/love2d/transport.lua",
       ["sentry.platforms.nginx.os_detection"] = "build/sentry/platforms/nginx/os_detection.lua",

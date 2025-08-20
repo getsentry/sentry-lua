@@ -36,6 +36,19 @@ local function assert_false(condition, message)
     assert_equal(condition, false, message)
 end
 
+local function assert_not_equal(actual, expected, message)
+    if actual == expected then
+        test_results.failed = test_results.failed + 1
+        local error_msg = string.format("Expected '%s' to NOT equal '%s' - %s", tostring(actual), tostring(expected), message or "assertion failed")
+        log("✗ " .. error_msg)
+        table.insert(test_results.tests, {status = "FAIL", message = error_msg})
+    else
+        test_results.passed = test_results.passed + 1
+        log("✓ " .. (message or "values are not equal"))
+        table.insert(test_results.tests, {status = "PASS", message = message or "values are not equal"})
+    end
+end
+
 local function assert_not_nil(value, message)
     if value ~= nil then
         test_results.passed = test_results.passed + 1
@@ -202,6 +215,90 @@ local function test_transport_functionality()
     end
 end
 
+local function test_error_handler_integration()
+    log("Testing Love2D error handler integration...")
+    
+    -- Test loading integration module
+    local ok, integration_module = pcall(require, "sentry.platforms.love2d.integration")
+    assert_true(ok, "Should be able to load Love2D integration module")
+    assert_not_nil(integration_module.setup_love2d_integration, "Integration module should export setup function")
+    
+    -- Test creating integration instance
+    local integration = integration_module.setup_love2d_integration()
+    assert_not_nil(integration, "Integration should be created successfully")
+    assert_true(type(integration.install_error_handler) == "function", "Integration should have install_error_handler method")
+    assert_true(type(integration.uninstall_error_handler) == "function", "Integration should have uninstall_error_handler method")
+    
+    -- Store original error handler 
+    local original_handler = love.errorhandler
+    
+    -- Test installing error handler with updated API
+    integration:install_error_handler({
+        capture_exception = function(self, exception_data, level)
+            log("Mock capture_exception called with type: " .. (exception_data.type or "unknown") .. " level: " .. (level or "unknown"))
+            return "test-event-id"
+        end,
+        transport = {
+            flush = function(self)
+                log("Mock transport flush called")
+            end
+        }
+    })
+    
+    assert_not_equal(love.errorhandler, original_handler, "Error handler should be replaced")
+    
+    -- Test the error handler by triggering a fatal error (it should be captured and re-thrown)
+    local error_captured = false
+    local flush_called = false
+    
+    integration:uninstall_error_handler()
+    integration:install_error_handler({
+        options = {
+            environment = "test",
+            debug = true
+        },
+        scope = {
+            apply_to_event = function(self, event)
+                log("✓ Scope applied to fatal error event")
+                return event
+            end
+        },
+        transport = {
+            send = function(self, event)
+                log("✓ Fatal error captured with mechanism: " .. (event.exception and event.exception.values and event.exception.values[1] and event.exception.values[1].mechanism and event.exception.values[1].mechanism.type or "unknown"))
+                error_captured = true
+                if event.exception and event.exception.values and event.exception.values[1] then
+                    local exception = event.exception.values[1]
+                    assert_equal(exception.type, "RuntimeError", "Exception type should be RuntimeError")
+                    assert_equal(exception.mechanism.type, "love.errorhandler", "Mechanism type should be love.errorhandler")
+                    assert_equal(exception.mechanism.handled, false, "Mechanism handled should be false")
+                end
+                return true, nil
+            end,
+            flush = function(self)
+                log("✓ Transport flush called for fatal error")
+                flush_called = true
+            end
+        }
+    })
+    
+    -- Try to trigger the error handler (should be captured then re-thrown)
+    local caught_error = nil
+    local success = pcall(function()
+        love.errorhandler("Fatal Love2D error triggered by test - Testing love.errorhandler integration!")
+    end)
+    
+    -- The error handler should have captured the error and re-thrown it
+    assert_true(error_captured, "Fatal error should have been captured by integration")
+    assert_true(flush_called, "Transport flush should have been called")
+    
+    -- Test uninstalling error handler
+    integration:uninstall_error_handler()
+    assert_equal(love.errorhandler, original_handler, "Error handler should be restored")
+    
+    log("Error handler integration test completed")
+end
+
 function love.load()
     log("Starting Love2D Sentry SDK tests...")
     test_results.start_time = love.timer.getTime()
@@ -213,6 +310,7 @@ function love.load()
     run_test("Logger Functionality", test_logger_functionality)
     run_test("Error Capture", test_error_capture)
     run_test("Transport Functionality", test_transport_functionality)
+    run_test("Error Handler Integration", test_error_handler_integration)
     
     -- Wait a moment for async operations
     love.timer.sleep(1)

@@ -2,6 +2,14 @@
 
 ## 0.0.3
 
+### Features
+
+- Add Love2D fatal error handler integration (#love2d)
+  - Hooks into `love.errorhandler` to capture fatal crashes
+  - Sets `mechanism.handled: false` for proper error classification
+  - Automatically installed in Love2D environments
+  - Includes comprehensive test coverage
+
 ### Various fixes & improvements
 
 - validate rockspec in ci (1635d0d8) by @bruno-garcia

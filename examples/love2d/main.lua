@@ -18,11 +18,22 @@ local game = {
     
     -- Button state
     button = {
-        x = 300,
+        x = 250,
         y = 400,
-        width = 200,
+        width = 160,
         height = 60,
         text = "Trigger Error",
+        hover = false,
+        pressed = false
+    },
+    
+    -- Fatal error button
+    fatal_button = {
+        x = 430,
+        y = 400,
+        width = 160,
+        height = 60,
+        text = "Fatal Error",
         hover = false,
         pressed = false
     },
@@ -188,7 +199,8 @@ function love.draw()
     love.graphics.setFont(game.font_small)
     love.graphics.setColor(0.8, 0.8, 0.8, 1)
     love.graphics.printf("This demo shows Love2D integration with Sentry SDK", 0, 280, love.graphics.getWidth(), "center")
-    love.graphics.printf("Click the button to trigger an error with multi-frame stack trace", 0, 300, love.graphics.getWidth(), "center")
+    love.graphics.printf("Red: Regular error (caught) • Purple: Fatal error (love.errorhandler)", 0, 300, love.graphics.getWidth(), "center")
+    love.graphics.printf("Press 'R' for regular error, 'F' for fatal error, 'ESC' to exit", 0, 320, love.graphics.getWidth(), "center")
     
     -- Draw button
     local button = game.button
@@ -213,6 +225,29 @@ function love.draw()
     love.graphics.print(button.text, 
                        button.x + (button.width - text_width) / 2,
                        button.y + (button.height - text_height) / 2)
+    
+    -- Draw fatal button
+    local fatal_button = game.fatal_button
+    local fatal_button_color = fatal_button.hover and {0.8, 0.2, 0.8, 1} or {0.6, 0.1, 0.6, 1}
+    if fatal_button.pressed then
+        fatal_button_color = {1.0, 0.3, 1.0, 1}
+    end
+    
+    love.graphics.setColor(fatal_button_color[1], fatal_button_color[2], fatal_button_color[3], fatal_button_color[4])
+    love.graphics.rectangle("fill", fatal_button.x, fatal_button.y, fatal_button.width, fatal_button.height, 8, 8)
+    
+    -- Draw fatal button border
+    love.graphics.setColor(1, 1, 1, 0.3)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", fatal_button.x, fatal_button.y, fatal_button.width, fatal_button.height, 8, 8)
+    
+    -- Draw fatal button text
+    love.graphics.setFont(game.button_font)
+    love.graphics.setColor(1, 1, 1, 1)
+    local fatal_text_width = game.button_font:getWidth(fatal_button.text)
+    love.graphics.print(fatal_button.text, 
+                       fatal_button.x + (fatal_button.width - fatal_text_width) / 2,
+                       fatal_button.y + (fatal_button.height - text_height) / 2)
     
     -- Draw stats
     love.graphics.setFont(game.font_small)
@@ -269,6 +304,32 @@ function love.mousepressed(x, y, button_num, istouch, presses)
             xpcall(function()
                 game.demo_functions.level1("button_click", "button_click")
             end, error_handler)
+            
+        -- Check if click is within fatal button bounds
+        elseif x >= game.fatal_button.x and x <= game.fatal_button.x + game.fatal_button.width and
+               y >= game.fatal_button.y and y <= game.fatal_button.y + game.fatal_button.height then
+            
+            game.fatal_button.pressed = true
+            
+            -- Add breadcrumb before triggering fatal error
+            sentry.add_breadcrumb({
+                message = "Fatal error button clicked - will trigger love.errorhandler",
+                category = "user_interaction", 
+                level = "warning",
+                data = {
+                    mouse_x = x,
+                    mouse_y = y,
+                    test_type = "fatal_error"
+                }
+            })
+            
+            -- Log the fatal button click
+            logger.info("Fatal error button clicked at position (%s, %s)", {x, y})
+            logger.info("This will trigger love.errorhandler and crash the app...")
+            
+            -- Trigger a fatal error that will go through love.errorhandler
+            -- This error is NOT caught with xpcall, so it will bubble up to love.errorhandler
+            error("Fatal Love2D error triggered by user - Testing love.errorhandler integration!")
         end
     end
 end
@@ -276,6 +337,7 @@ end
 function love.mousereleased(x, y, button_num, istouch, presses)
     if button_num == 1 then
         game.button.pressed = false
+        game.fatal_button.pressed = false
     end
 end
 
@@ -309,6 +371,22 @@ function love.keypressed(key)
         xpcall(function()
             game.demo_functions.level1("render_test", "rendering")
         end, error_handler)
+        
+    elseif key == "f" then
+        -- Trigger fatal error via keyboard
+        logger.info("Fatal error triggered via keyboard - will crash app")
+        
+        sentry.add_breadcrumb({
+            message = "Fatal error triggered via keyboard (F key)",
+            category = "keyboard_interaction", 
+            level = "warning",
+            data = {
+                test_type = "fatal_error_keyboard"
+            }
+        })
+        
+        -- This will go through love.errorhandler and crash the app
+        error("Fatal Love2D error triggered by keyboard (F key) - Testing love.errorhandler integration!")
     end
 end
 
