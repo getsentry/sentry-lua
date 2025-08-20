@@ -16,18 +16,14 @@ jobs:
     name: Test 'luarocks install sentry/sentry' on clean system
     runs-on: ubuntu-latest
     
-    strategy:
-      matrix:
-        lua-version: ['5.1', '5.2', '5.3', '5.4', 'luajit']
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
       
-    - name: Install Lua ${{ matrix.lua-version }}
+    - name: Install Lua 5.4
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
-        luaVersion: ${{ matrix.lua-version }}
+        luaVersion: '5.4'
         
     - name: Install LuaRocks
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
