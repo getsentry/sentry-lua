@@ -1,5 +1,5 @@
 project_name: "Sentry Lua SDK"
-project_version: "0.0.5"
+project_version: "0.0.6"
 source_dir: "src"
 output_dir: "docs"
 title: "Sentry SDK for Lua Documentation"

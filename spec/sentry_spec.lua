@@ -68,7 +68,7 @@ describe("Sentry SDK", function()
       
       it("should set tags", function()
          sentry.set_tag("environment", "test")
-         sentry.set_tag("version", "0.0.5")
+         sentry.set_tag("version", "0.0.6")
          
          -- Capture message should succeed
          local event_id = sentry.capture_message("Test tags")

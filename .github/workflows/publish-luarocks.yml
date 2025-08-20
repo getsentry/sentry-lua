@@ -42,13 +42,6 @@ jobs:
         LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
         ROCKSPEC_FILE: ${{ steps.find-rockspec.outputs.ROCKSPEC_FILE }}
       run: |
-        if [ -z "$LUAROCKS_TOKEN" ]; then
-          echo "❌ LUAROCKS_TOKEN secret not set"
-          echo "Please add your LuaRocks API key as a repository secret named 'LUAROCKS_TOKEN'"
-          exit 1
-        fi
-        
-        echo "Uploading $ROCKSPEC_FILE to LuaRocks.org..."
         luarocks upload $ROCKSPEC_FILE --api-key="$LUAROCKS_TOKEN"
         
         echo "✅ Successfully published to LuaRocks.org"
