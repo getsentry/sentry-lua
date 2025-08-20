@@ -342,3 +342,31 @@ publish: build
 	@# Show contents of the zip file
 	@echo "Package contents:"
 	@unzip -l sentry-lua-sdk-publish.zip
+
+# Create binary rock for distribution
+rock: build
+	@echo "Creating binary rock..."
+	@# Clean up any existing rocks
+	@rm -f *.rock
+	@# Create binary rock
+	@luarocks make --pack-binary-rock
+	@# Verify rock was created
+	@ROCK_FILE=$$(ls *.rock 2>/dev/null | head -1); \
+	if [ -z "$$ROCK_FILE" ]; then \
+		echo "❌ No .rock file was created"; \
+		exit 1; \
+	fi; \
+	echo "✅ Binary rock created: $$ROCK_FILE"; \
+	echo "Rock size: $$(ls -lh $$ROCK_FILE | awk '{print $$5}')"
+
+# Test installing the binary rock locally
+test-rock: rock
+	@echo "Testing binary rock installation..."
+	@ROCK_FILE=$$(ls *.rock 2>/dev/null | head -1); \
+	if [ -z "$$ROCK_FILE" ]; then \
+		echo "❌ No .rock file found"; \
+		exit 1; \
+	fi; \
+	echo "Installing $$ROCK_FILE locally..."; \
+	luarocks install --local --force "$$ROCK_FILE"; \
+	echo "✅ Binary rock installed successfully"

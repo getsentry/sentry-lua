@@ -168,11 +168,31 @@ jobs:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - run: make publish
-
-    - name: Upload artifact
+    - name: Create binary rock
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
-      uses: actions/upload-artifact@v4
+      shell: bash
+      run: |
+        echo "Creating binary rock for distribution..."
+        luarocks make --pack-binary-rock
+        
+        # Verify rock was created
+        ROCK_FILE=$(ls *.rock 2>/dev/null | head -1)
+        if [ -z "$ROCK_FILE" ]; then
+          echo "❌ No .rock file was created"
+          exit 1
+        fi
+        
+        echo "✅ Binary rock created: $ROCK_FILE"
+        echo "ROCK_FILE=$ROCK_FILE" >> $GITHUB_ENV
+        
+        # List contents for verification
+        echo "Rock contents:"
+        luarocks unpack --force "$ROCK_FILE"
+        ls -la sentry-*/
+
+    - name: Upload binary rock artifact
+      if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
-        name: ${{ github.sha }}
-        path: sentry-lua-sdk-publish.zip
+        name: sentry-binary-rock-${{ github.sha }}
+        path: "*.rock"

@@ -38,9 +38,23 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 ## Installation
 
-### LuaRocks
+### LuaRocks (Binary Rock - Recommended)
 ```bash
-luarocks install sentry/sentry
+# Download the latest binary rock from GitHub releases:
+# https://github.com/getsentry/sentry-lua/releases
+
+# Install the downloaded rock file
+luarocks install sentry-0.0.3-1.all.rock
+```
+
+### LuaRocks (From Source - Development)
+```bash
+# Clone the repository and build from source
+git clone https://github.com/getsentry/sentry-lua.git
+cd sentry-lua
+make install
+make build
+luarocks make
 ```
 
 ### Roblox

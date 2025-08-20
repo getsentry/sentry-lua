@@ -16,6 +16,8 @@ docs/
 sentry-events.log
 sentry-lua-sdk-publish.zip
 rockspec-test
+*.rock
+sentry-*/
 
 # IDE and editor files
 .claude/settings.local.json

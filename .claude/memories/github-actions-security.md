@@ -61,12 +61,17 @@ When updating GitHub Actions:
 Reference SHAs used in this project (update when versions change):
 
 - `actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4`
+- `actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0`
 - `ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1`
 - `leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10`
 - `leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4`
 - `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4`
 - `codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4`
 - `codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # v1`
+
+### Internal Sentry Actions (may use version tags)
+
+- `getsentry/action-prepare-release@v1` - Internal Sentry action, may not follow SHA pinning
 
 ## Validation
 
