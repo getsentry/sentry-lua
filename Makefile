@@ -266,10 +266,14 @@ test-rockspec-clean:
 	@echo 'if type(sentry.init) == "function" then' >> rockspec-clean-test/test.lua
 	@echo '  print("✅ Sentry API available")' >> rockspec-clean-test/test.lua
 	@echo 'end' >> rockspec-clean-test/test.lua
-	@# Install dependencies and rockspec
-	@echo "Installing dependencies and rockspec..."
+	@# Install build dependencies first  
+	@echo "Installing build dependencies..."
 	@cd rockspec-clean-test && luarocks install --local tl
-	@cd rockspec-clean-test && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local {} \;
+	@echo "Installing sentry rockspec with all dependencies..."
+	@cd rockspec-clean-test && find . -maxdepth 1 -name "*.rockspec" -exec echo "Found rockspec: {}" \;
+	@cd rockspec-clean-test && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local --verbose {} \; || { echo "❌ Rockspec installation failed"; luarocks list --local; exit 1; }
+	@echo "Verifying sentry module installation..."
+	@cd rockspec-clean-test && eval "$$(luarocks path --local)" && lua -e "require('sentry'); print('✅ Sentry module found')" || { echo "❌ Sentry module not found after installation"; exit 1; }
 	@# Test functionality
 	@echo "Testing Sentry functionality..."
 	@cd rockspec-clean-test && eval "$$(luarocks path --local)" && lua test.lua
