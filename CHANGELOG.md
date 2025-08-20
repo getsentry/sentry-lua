@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.3
+
+### Various fixes & improvements
+
+- validate rockspec in ci (1635d0d8) by @bruno-garcia
+- fix rockspec deps and lua modules (3232de4a) by @bruno-garcia
+
 ## 0.0.2
 
 ### Various fixes & improvements

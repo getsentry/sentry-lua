@@ -226,7 +226,7 @@ test-rockspec: build
 	@# Generate comprehensive module validation test
 	@echo "Generating dynamic module validation..."
 	@# Extract all modules from rockspec
-	@grep -E '^\s*\["[^"]+"\]\s*=' *.rockspec | sed 's/.*\["\([^"]*\)"\].*/\1/' | sort > rockspec-test/rockspec-modules.txt
+	@find . -maxdepth 1 -name "*.rockspec" -exec grep -E '^\s*\["[^"]+"\]\s*=' {} \; | sed 's/.*\["\([^"]*\)"\].*/\1/' | sort > rockspec-test/rockspec-modules.txt
 	@# Find all build/*.lua files and convert to module names
 	@find build -name "*.lua" -type f | \
 		sed 's|build/||' | \
@@ -302,11 +302,11 @@ test-rockspec: build
 	@echo '  print("✅ All modules validated successfully!")' >> rockspec-test/test-app/module_test.lua
 	@echo 'end' >> rockspec-test/test-app/module_test.lua
 	@# Copy current rockspec to test directory and fix paths for testing
-	@cp *.rockspec rockspec-test/
+	@find . -maxdepth 1 -name "*.rockspec" -exec cp {} rockspec-test/ \;
 	@# Fix relative paths in rockspec for testing (use absolute paths)
-	@cd rockspec-test && sed -i.bak 's|build/|../build/|g' *.rockspec
+	@cd rockspec-test && find . -maxdepth 1 -name "*.rockspec" -exec sed -i.bak 's|build/|../build/|g' {} \;
 	@# Install the rockspec locally
-	@cd rockspec-test && echo "Installing rockspec locally..." && luarocks make --local *.rockspec
+	@cd rockspec-test && echo "Installing rockspec locally..." && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local {} \;
 	@# Test basic functionality
 	@echo "Testing basic Sentry functionality..."
 	@cd rockspec-test/test-app && eval "$$(luarocks path)" && lua test.lua

@@ -1,5 +1,5 @@
 package = "sentry"
-version = "0.0.2-1"
+version = "0.0.3-1"
 source = {
    url = "git+https://github.com/getsentry/sentry-lua.git"
 }
