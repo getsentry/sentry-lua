@@ -50,9 +50,6 @@ build = {
       -- Platform loader
       ["sentry.platform_loader"] = "build/sentry/platform_loader.lua",
       
-      -- Integrations
-      ["sentry.integrations.love2d"] = "build/sentry/integrations/love2d.lua",
-      
       -- Platform-specific modules
       ["sentry.platforms.defold.file_io"] = "build/sentry/platforms/defold/file_io.lua",
       ["sentry.platforms.defold.transport"] = "build/sentry/platforms/defold/transport.lua",
