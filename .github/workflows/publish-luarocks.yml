@@ -1,0 +1,55 @@
+name: Publish to LuaRocks
+
+# Manual workflow that can be triggered via GitHub UI
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Upload rockspec to LuaRocks.org
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+      
+    - name: Install Lua 5.4
+      uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
+      with:
+        luaVersion: '5.4'
+        
+    - name: Install LuaRocks
+      uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+      
+    - name: Find rockspec file
+      id: find-rockspec
+      run: |
+        ROCKSPEC_FILE=$(find . -maxdepth 1 -name "sentry-*.rockspec" | head -1)
+        if [ -z "$ROCKSPEC_FILE" ]; then
+          echo "❌ No rockspec file found"
+          exit 1
+        fi
+        echo "Found rockspec: $ROCKSPEC_FILE"
+        echo "ROCKSPEC_FILE=$ROCKSPEC_FILE" >> $GITHUB_OUTPUT
+        
+    - name: Validate rockspec
+      run: |
+        echo "Validating rockspec syntax..."
+        luarocks lint "${{ steps.find-rockspec.outputs.ROCKSPEC_FILE }}"
+        
+    - name: Upload to LuaRocks.org
+      env:
+        LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
+        ROCKSPEC_FILE: ${{ steps.find-rockspec.outputs.ROCKSPEC_FILE }}
+      run: |
+        if [ -z "$LUAROCKS_TOKEN" ]; then
+          echo "❌ LUAROCKS_TOKEN secret not set"
+          echo "Please add your LuaRocks API key as a repository secret named 'LUAROCKS_TOKEN'"
+          exit 1
+        fi
+        
+        echo "Uploading $ROCKSPEC_FILE to LuaRocks.org..."
+        luarocks upload $ROCKSPEC_FILE --api-key="$LUAROCKS_TOKEN"
+        
+        echo "✅ Successfully published to LuaRocks.org"
+        echo "Package available at: https://luarocks.org/modules/sentry/sentry"
