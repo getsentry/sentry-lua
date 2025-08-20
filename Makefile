@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d publish
+.PHONY: build test test-coverage coverage-report test-love clean install docs install-love2d ci-love2d test-rockspec publish
 
 # Build Teal files to Lua
 build:
@@ -163,7 +163,7 @@ docker-test-nginx:
 	docker-compose -f docker/nginx/docker-compose.yml up --build --abort-on-container-exit
 
 # Full test suite (excludes Love2D - requires Love2D installation)
-test-all: test docker-test-redis docker-test-nginx
+test-all: test test-rockspec docker-test-redis docker-test-nginx
 
 # Install Love2D (platform-specific)
 install-love2d:
@@ -204,7 +204,7 @@ install-love2d:
 ci-love2d: install-love2d build test-love
 
 # Full test suite including Love2D (requires Love2D to be installed)
-test-all-with-love: test test-love docker-test-redis docker-test-nginx
+test-all-with-love: test test-rockspec test-love docker-test-redis docker-test-nginx
 
 # Serve documentation locally
 serve-docs: docs
@@ -212,10 +212,116 @@ serve-docs: docs
 	@echo "Press Ctrl+C to stop"
 	python3 -m http.server 8000 --directory docs
 
+# Test rockspec by installing it in an isolated environment
+test-rockspec: build
+	@echo "Testing rockspec installation and module loading..."
+	@rm -rf rockspec-test/
+	@mkdir -p rockspec-test/test-app
+	@# Create a minimal test application
+	@echo 'local sentry = require("sentry")' > rockspec-test/test-app/test.lua
+	@echo 'sentry.init({dsn = "https://test@example.com/123"})' >> rockspec-test/test-app/test.lua
+	@echo 'print("✅ Sentry loaded successfully")' >> rockspec-test/test-app/test.lua
+	@echo 'sentry.capture_message("Test message from rockspec validation")' >> rockspec-test/test-app/test.lua
+	@echo 'print("✅ Sentry functionality works")' >> rockspec-test/test-app/test.lua
+	@# Generate comprehensive module validation test
+	@echo "Generating dynamic module validation..."
+	@# Extract all modules from rockspec
+	@grep -E '^\s*\["[^"]+"\]\s*=' *.rockspec | sed 's/.*\["\([^"]*\)"\].*/\1/' | sort > rockspec-test/rockspec-modules.txt
+	@# Find all build/*.lua files and convert to module names
+	@find build -name "*.lua" -type f | \
+		sed 's|build/||' | \
+		sed 's|\.lua$$||' | \
+		sed 's|/|.|g' | \
+		sort > rockspec-test/build-modules.txt
+	@# Create module loading test script
+	@echo '-- Dynamically generated module validation test' > rockspec-test/test-app/module_test.lua
+	@echo 'local function read_modules(filename)' >> rockspec-test/test-app/module_test.lua
+	@echo '  local modules = {}' >> rockspec-test/test-app/module_test.lua
+	@echo '  local file = io.open(filename, "r")' >> rockspec-test/test-app/module_test.lua
+	@echo '  if not file then error("Could not open " .. filename) end' >> rockspec-test/test-app/module_test.lua
+	@echo '  for line in file:lines() do' >> rockspec-test/test-app/module_test.lua
+	@echo '    if line:match("%S") then table.insert(modules, line) end' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo '  file:close()' >> rockspec-test/test-app/module_test.lua
+	@echo '  return modules' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo 'local rockspec_modules = read_modules("../rockspec-modules.txt")' >> rockspec-test/test-app/module_test.lua
+	@echo 'local build_modules = read_modules("../build-modules.txt")' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo '-- Check if all build modules are in rockspec' >> rockspec-test/test-app/module_test.lua
+	@echo 'local missing_from_rockspec = {}' >> rockspec-test/test-app/module_test.lua
+	@echo 'for _, build_mod in ipairs(build_modules) do' >> rockspec-test/test-app/module_test.lua
+	@echo '  local found = false' >> rockspec-test/test-app/module_test.lua
+	@echo '  for _, rock_mod in ipairs(rockspec_modules) do' >> rockspec-test/test-app/module_test.lua
+	@echo '    if build_mod == rock_mod then found = true; break end' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo '  if not found then' >> rockspec-test/test-app/module_test.lua
+	@echo '    table.insert(missing_from_rockspec, build_mod)' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo '-- Check if all rockspec modules can be loaded' >> rockspec-test/test-app/module_test.lua
+	@echo 'local failed_to_load = {}' >> rockspec-test/test-app/module_test.lua
+	@echo 'local loaded_count = 0' >> rockspec-test/test-app/module_test.lua
+	@echo 'for _, module in ipairs(rockspec_modules) do' >> rockspec-test/test-app/module_test.lua
+	@echo '  local ok, result = pcall(require, module)' >> rockspec-test/test-app/module_test.lua
+	@echo '  if not ok then' >> rockspec-test/test-app/module_test.lua
+	@echo '    table.insert(failed_to_load, module .. ": " .. tostring(result))' >> rockspec-test/test-app/module_test.lua
+	@echo '  else' >> rockspec-test/test-app/module_test.lua
+	@echo '    loaded_count = loaded_count + 1' >> rockspec-test/test-app/module_test.lua
+	@echo '    print("✅ " .. module .. " loaded successfully")' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo '-- Report results' >> rockspec-test/test-app/module_test.lua
+	@echo 'print("")' >> rockspec-test/test-app/module_test.lua
+	@echo 'print("=== MODULE VALIDATION SUMMARY ===")' >> rockspec-test/test-app/module_test.lua
+	@echo 'print("Build modules found: " .. #build_modules)' >> rockspec-test/test-app/module_test.lua
+	@echo 'print("Rockspec modules found: " .. #rockspec_modules)' >> rockspec-test/test-app/module_test.lua
+	@echo 'print("Successfully loaded: " .. loaded_count)' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo 'if #missing_from_rockspec > 0 then' >> rockspec-test/test-app/module_test.lua
+	@echo '  print("❌ BUILD MODULES MISSING FROM ROCKSPEC:")' >> rockspec-test/test-app/module_test.lua
+	@echo '  for _, mod in ipairs(missing_from_rockspec) do' >> rockspec-test/test-app/module_test.lua
+	@echo '    print("  " .. mod)' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo 'if #failed_to_load > 0 then' >> rockspec-test/test-app/module_test.lua
+	@echo '  print("❌ ROCKSPEC MODULES FAILED TO LOAD:")' >> rockspec-test/test-app/module_test.lua
+	@echo '  for _, err in ipairs(failed_to_load) do' >> rockspec-test/test-app/module_test.lua
+	@echo '    print("  " .. err)' >> rockspec-test/test-app/module_test.lua
+	@echo '  end' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@echo '' >> rockspec-test/test-app/module_test.lua
+	@echo 'if #missing_from_rockspec > 0 or #failed_to_load > 0 then' >> rockspec-test/test-app/module_test.lua
+	@echo '  print("❌ Module validation failed!")' >> rockspec-test/test-app/module_test.lua
+	@echo '  os.exit(1)' >> rockspec-test/test-app/module_test.lua
+	@echo 'else' >> rockspec-test/test-app/module_test.lua
+	@echo '  print("✅ All modules validated successfully!")' >> rockspec-test/test-app/module_test.lua
+	@echo 'end' >> rockspec-test/test-app/module_test.lua
+	@# Copy current rockspec to test directory and fix paths for testing
+	@cp *.rockspec rockspec-test/
+	@# Fix relative paths in rockspec for testing (use absolute paths)
+	@cd rockspec-test && sed -i.bak 's|build/|../build/|g' *.rockspec
+	@# Install the rockspec locally
+	@cd rockspec-test && echo "Installing rockspec locally..." && luarocks make --local *.rockspec
+	@# Test basic functionality
+	@echo "Testing basic Sentry functionality..."
+	@cd rockspec-test/test-app && eval "$$(luarocks path)" && lua test.lua
+	@# Test module loading
+	@echo "Testing module loading..."
+	@cd rockspec-test/test-app && eval "$$(luarocks path)" && lua module_test.lua
+	@# Clean up
+	@echo "Cleaning up test environment..."
+	@rm -rf rockspec-test/
+	@echo "✅ Rockspec validation completed successfully"
+
 # Create publish package
 publish: build
 	@echo "Creating publish package..."
-	@rm -f sentry-lua-publish.zip
+	@rm -f sentry-lua-sdk-publish.zip
 	@# Create temporary directory for packaging
 	@mkdir -p publish-temp
 	@# Copy required files
@@ -229,10 +335,10 @@ publish: build
 	@# Copy examples directory (recursively)
 	@cp -r examples publish-temp/ || { echo "❌ examples directory not found"; exit 1; }
 	@# Create zip file
-	@cd publish-temp && zip -r ../sentry-lua-publish.zip . > /dev/null
+	@cd publish-temp && zip -r ../sentry-lua-sdk-publish.zip . > /dev/null
 	@# Clean up temporary directory
 	@rm -rf publish-temp
-	@echo "✅ Publish package created: sentry-lua-publish.zip"
+	@echo "✅ Publish package created: sentry-lua-sdk-publish.zip"
 	@# Show contents of the zip file
 	@echo "Package contents:"
-	@unzip -l sentry-lua-publish.zip
+	@unzip -l sentry-lua-sdk-publish.zip

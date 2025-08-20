@@ -8,7 +8,7 @@ Critical memory: CONTRIBUTING.md and GitHub Actions workflows must remain synchr
 - `/CONTRIBUTING.md` - Developer documentation
 - `/.github/workflows/test.yml` - CI pipeline
 - `/Makefile` - Build system (install target)
-- `/sentry-lua-*.rockspec` - LuaRocks dependencies
+- `/sentry-*.rockspec` - LuaRocks dependencies
 
 ### Critical Sync Points
 

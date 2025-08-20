@@ -14,7 +14,8 @@ node_modules/
 .DS_Store
 docs/
 sentry-events.log
-sentry-lua-publish.zip
+sentry-lua-sdk-publish.zip
+rockspec-test
 
 # IDE and editor files
 .claude/settings.local.json

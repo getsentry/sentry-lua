@@ -46,7 +46,7 @@ if ($rockspec) {
     Replace-TextInFile $rockspec.FullName '(?<=version = ").*?(?=")' "$newVersion-1"
     
     # Rename rockspec file to match new version
-    $newRockspecName = "sentry-lua-$newVersion-1.rockspec"
+    $newRockspecName = "sentry-$newVersion-1.rockspec"
     $newRockspecPath = "$repoRoot/$newRockspecName"
     
     if ($rockspec.Name -ne $newRockspecName) {

@@ -11,7 +11,8 @@ description = {
       Written in Teal Language for better type safety and developer experience.
    ]],
    license = "MIT",
-   homepage = "https://github.com/getsentry/sentry-lua"
+   homepage = "https://github.com/getsentry/sentry-lua",
+   maintainer = "Bruno Garcia"
 }
 dependencies = {
    "lua >= 5.1",
@@ -36,10 +37,13 @@ build = {
       
       -- Logger
       ["sentry.logger"] = "build/sentry/logger/init.lua",
+      ["sentry.logger.init"] = "build/sentry/logger/init.lua",
       
       -- Performance/Tracing
       ["sentry.performance"] = "build/sentry/performance/init.lua",
+      ["sentry.performance.init"] = "build/sentry/performance/init.lua",
       ["sentry.tracing"] = "build/sentry/tracing/init.lua",
+      ["sentry.tracing.init"] = "build/sentry/tracing/init.lua",
       ["sentry.tracing.headers"] = "build/sentry/tracing/headers.lua",
       ["sentry.tracing.propagation"] = "build/sentry/tracing/propagation.lua",
       

@@ -130,6 +130,17 @@ jobs:
     - name: Run tests with coverage
       run: make coverage-report
     
+    - name: Validate rockspec installation
+      shell: bash
+      run: |
+        # For Ubuntu LuaJIT, update the rockspec test to use local luarocks path  
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
+          eval "$(luarocks path --local)"
+          make test-rockspec
+        else
+          make test-rockspec
+        fi
+    
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
@@ -164,4 +175,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ github.sha }}
-        path: sentry-lua-publish.zip
+        path: sentry-lua-sdk-publish.zip
