@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.6
+
+### Various fixes & improvements
+
+- manual publish workflow (ebe8a3f5) by @bruno-garcia
+- packaging for non luarocks use cases (319fb9e7) by @bruno-garcia
+- remove oudated comment (c228ac26) by @bruno-garcia
+
 ## 0.0.5
 
 ### Various fixes & improvements

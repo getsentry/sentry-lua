@@ -1,6 +1,6 @@
 {
    "name": "sentry",
-   "version": "0.0.5",
+   "version": "0.0.6",
    "description": "Sentry SDK for Roblox - Error tracking and monitoring",
    "author": "bruno-garcia",
    "license": "MIT",
