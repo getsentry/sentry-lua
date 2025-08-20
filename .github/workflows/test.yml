@@ -168,32 +168,41 @@ jobs:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Create binary rock
+    - name: Create distribution zip
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       shell: bash
       run: |
-        echo "Creating binary rock for distribution..."
-        luarocks make --pack-binary-rock
+        echo "Creating distribution zip for Love2D and other non-LuaRocks users..."
         
-        # Verify rock was created
-        ROCK_FILE=$(ls *.rock 2>/dev/null | head -1)
-        if [ -z "$ROCK_FILE" ]; then
-          echo "❌ No .rock file was created"
-          exit 1
-        fi
+        # Create temporary directory for packaging
+        mkdir -p dist-temp
         
-        echo "✅ Binary rock created: $ROCK_FILE"
-        echo "ROCK_FILE=$ROCK_FILE" >> $GITHUB_ENV
+        # Copy required files and directories
+        cp CHANGELOG.md dist-temp/ || { echo "❌ CHANGELOG.md not found"; exit 1; }
+        cp README.md dist-temp/ || { echo "❌ README.md not found"; exit 1; }
         
-        # List contents for verification
-        echo "Rock contents:"
-        luarocks unpack --force "$ROCK_FILE"
-        ls -la sentry-*/
+        # Copy directories (recursively)
+        cp -r build dist-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
+        cp -r spec dist-temp/ || { echo "❌ spec directory not found"; exit 1; }
+        cp -r examples dist-temp/ || { echo "❌ examples directory not found"; exit 1; }
+        
+        # Create zip file
+        cd dist-temp && zip -r ../sentry-lua-sdk.zip . > /dev/null
+        cd ..
+        
+        # Clean up temporary directory
+        rm -rf dist-temp
+        
+        echo "✅ Distribution zip created: sentry-lua-sdk.zip"
+        
+        # Show contents for verification
+        echo "Distribution zip contents:"
+        unzip -l sentry-lua-sdk.zip
 
-    - name: Upload binary rock artifact
+    - name: Upload distribution zip artifact
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         # Must be named as the SHA alone so craft can find it and release it.
         name: ${{ github.sha }}
-        path: "*.rock"
+        path: "sentry-lua-sdk.zip"
