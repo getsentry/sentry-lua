@@ -49,12 +49,16 @@ if ($rockspec) {
     
     # Rename rockspec file to match new version
     $newRockspecName = "sentry-$newVersion-1.rockspec"
-    $newRockspecPath = "$repoRoot/$newRockspecName"
     
     if ($rockspec.Name -ne $newRockspecName) {
         Write-Host "Renaming rockspec from $($rockspec.Name) to $newRockspecName"
-        Move-Item $rockspec.FullName $newRockspecPath
+        # Use Rename-Item instead of Move-Item to avoid potential issues
+        Rename-Item $rockspec.FullName $newRockspecName
     }
+} else {
+    Write-Warning "No existing rockspec file found. Please ensure a rockspec file exists before running version bump."
+    Write-Host "Expected to find a *.rockspec file in $repoRoot"
+    exit 1
 }
 
 # Update centralized version file

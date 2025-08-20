@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.5
+
+### Various fixes & improvements
+
+- publish as rockspec (22cd9c64) by @bruno-garcia
+- luarocks instructions (22694686) by @bruno-garcia
+- bump script (e8d2a291) by @bruno-garcia
+
 ## 0.0.4
 
 ### Various fixes & improvements
