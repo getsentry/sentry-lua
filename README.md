@@ -38,13 +38,13 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 ## Installation
 
-### LuaRocks (Binary Rock - Recommended)
+### LuaRocks (Rock - Recommended)
 ```bash
 # Download the latest binary rock from GitHub releases:
 # https://github.com/getsentry/sentry-lua/releases
 
 # Install the downloaded rock file
-luarocks install sentry-0.0.3-1.all.rock
+luarocks install sentry-0.0.4-1.all.rock
 ```
 
 ### LuaRocks (From Source - Development)
@@ -72,7 +72,7 @@ function love.load()
     sentry.init({
         dsn = "https://your-dsn@sentry.io/project-id",
         environment = "love2d",
-        release = "0.0.3"
+        release = "0.0.4"
     })
     
     -- Optional: Enable logging integration
@@ -114,7 +114,7 @@ local sentry = require("sentry")
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
    environment = "production",
-   release = "0.0.3"
+   release = "0.0.4"
 })
 
 -- Capture a message

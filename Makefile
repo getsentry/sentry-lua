@@ -304,15 +304,15 @@ test-rockspec: build
 	@# Copy current rockspec to test directory and fix paths for testing
 	@find . -maxdepth 1 -name "*.rockspec" -exec cp {} rockspec-test/ \;
 	@# Fix relative paths in rockspec for testing (use absolute paths)
-	@cd rockspec-test && find . -maxdepth 1 -name "*.rockspec" -exec sed -i.bak 's|build/|../build/|g' {} \;
+	@cd rockspec-test && find . -maxdepth 1 -name "*.rockspec" -exec sh -c 'sed "s|build/|../build/|g" "$$1" > "$$1.tmp" && mv "$$1.tmp" "$$1"' _ {} \;
 	@# Install the rockspec locally
 	@cd rockspec-test && echo "Installing rockspec locally..." && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local {} \;
 	@# Test basic functionality
 	@echo "Testing basic Sentry functionality..."
-	@cd rockspec-test/test-app && eval "$$(luarocks path)" && lua test.lua
+	@cd rockspec-test/test-app && eval "$$(luarocks path --local)" && lua test.lua
 	@# Test module loading
 	@echo "Testing module loading..."
-	@cd rockspec-test/test-app && eval "$$(luarocks path)" && lua module_test.lua
+	@cd rockspec-test/test-app && eval "$$(luarocks path --local)" && lua module_test.lua
 	@# Clean up
 	@echo "Cleaning up test environment..."
 	@rm -rf rockspec-test/

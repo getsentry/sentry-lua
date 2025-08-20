@@ -194,5 +194,6 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
-        name: sentry-binary-rock-${{ github.sha }}
+        # Must be named as the SHA alone so craft can find it and release it.
+        name: ${{ github.sha }}
         path: "*.rock"
