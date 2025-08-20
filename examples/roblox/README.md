@@ -1,173 +1,138 @@
-# Roblox Sentry Integration Demo
+# Roblox Sentry Integration
 
-This example demonstrates how to integrate the Sentry Lua SDK with Roblox games.
+Clean, production-ready Sentry integration for Roblox games.
 
-## Features
+## 🚀 Quick Start (Recommended)
 
-- **Roblox HTTP Transport**: Uses `HttpService` for sending events to Sentry
-- **Error Tracking**: Captures unhandled errors with stack traces
-- **Message Capture**: Manual event reporting with custom messages
-- **User Context**: Automatic player information collection
-- **GUI Interface**: Interactive testing interface with buttons to trigger events
-- **Platform Detection**: Automatic Roblox runtime and OS detection
+**Use the all-in-one file for easiest setup:**
 
-## Installation
+1. **Copy** `sentry-all-in-one.lua` 
+2. **Paste** into ServerScriptService as a Script
+3. **Update DSN** on line 16
+4. **Enable HTTP**: Game Settings → Security → "Allow HTTP Requests"
+5. **Run** the game (F5)
 
-### Method 1: Manual Installation (Recommended for Testing)
+## 📁 Available Files
 
-1. **Copy Sentry SDK Files**:
-   - Copy the entire `sentry/` folder from the build directory to your Roblox project
-   - Place it in `ReplicatedStorage` so both server and client can access it
+### Production Files
+- **`sentry-all-in-one.lua`** ⭐ **Complete single-file solution (recommended)**
+- **`sentry-roblox-sdk.lua`** - Reusable SDK module  
+- **`clean-example.lua`** - Example using the SDK module
 
-2. **Place Example Scripts**:
-   - Copy `ServerScript.lua` to `ServerScriptService`
-   - Copy `LocalScript.lua` to `StarterPlayer.StarterPlayerScripts`
-   - Copy `SentryTestGUI.lua` to `StarterGui`
+### Development Files  
+- **`simple-studio-test.sh`** - macOS setup helper
+- **`FINAL_TEST_GUIDE.md`** - Complete testing instructions
 
-### Method 2: Roblox Model (Future)
+### Legacy Files (for reference)
+- `simple-sentry-test.lua` - Original working implementation
+- `quick-test-script.lua` - First attempt (has security issues)
 
-A packaged Roblox model will be available for easy insertion into your games.
+## 🎯 Integration Options
 
-## Usage
-
-### Server-Side Integration
-
+### Option 1: All-in-One (Easiest)
+Perfect for testing and simple games.
 ```lua
--- ServerScriptService/SentryServer.lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local sentry = require(ReplicatedStorage.sentry)
-
--- Initialize Sentry
-sentry.init({
-   dsn = "https://your-dsn@sentry.io/project-id",
-   environment = "roblox-server",
-   release = "1.0.0",
-   server_name = "GameServer-" .. game.JobId
-})
-
--- Capture player join events
-game.Players.PlayerAdded:Connect(function(player)
-   sentry.set_user({
-      id = tostring(player.UserId),
-      username = player.Name,
-      email = nil -- Don't collect emails for privacy
-   })
-   
-   sentry.add_breadcrumb({
-      message = "Player joined game",
-      level = "info",
-      data = {
-         player_name = player.Name,
-         player_id = player.UserId
-      }
-   })
-end)
-
--- Wrap error-prone functions
-local function dangerousGameFunction()
-   -- Game logic that might error
-   error("Something went wrong in the game!")
-end
-
--- Automatic error capture
-local success, result = sentry.wrap(dangerousGameFunction)
+-- Just copy sentry-all-in-one.lua into your Script
+-- Everything included: SDK + example + test functions
 ```
 
-### Client-Side Integration
+### Option 2: Modular Approach
+Better for complex games with organized code.
+```lua
+-- 1. Place sentry-roblox-sdk.lua in ReplicatedStorage as ModuleScript "SentrySDK"
+-- 2. Use clean-example.lua as a starting point
+-- 3. Customize for your game
+```
+
+## 🧪 Testing
+
+All files include built-in test functions:
 
 ```lua
--- StarterPlayer/StarterPlayerScripts/SentryClient.lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local sentry = require(ReplicatedStorage.sentry)
+-- All-in-one version:
+_G.SentryAllInOne.sendMessage("Hello!")
+_G.SentryAllInOne.triggerError()
 
-local player = Players.LocalPlayer
+-- Clean example version:
+_G.CleanSentryTest.sendMessage("Hello!")
+_G.CleanSentryTest.triggerError()
+```
 
--- Initialize Sentry for client
+## ✅ Success Indicators
+
+Your integration is working when you see:
+
+1. **Console Output**:
+   ```
+   ✅ Event sent successfully!
+   📊 Response: {"id":"..."}
+   ```
+
+2. **Sentry Dashboard**: Events appear within 30 seconds at https://sentry.io/
+
+3. **Manual Commands Work**: Test functions execute without errors
+
+## 🛠️ Customization
+
+Update these values in your integration:
+
+```lua
+-- Required
+local SENTRY_DSN = "your-sentry-dsn-here"
+
+-- Optional  
 sentry.init({
-   dsn = "https://your-dsn@sentry.io/project-id",
-   environment = "roblox-client",
-   release = "1.0.0"
+    dsn = SENTRY_DSN,
+    environment = "production",  -- or "staging", "development"
+    release = "1.2.0"           -- your game version
 })
 
--- Set user context
+-- Add user context
 sentry.set_user({
-   id = tostring(player.UserId),
-   username = player.Name
+    id = tostring(player.UserId),
+    username = player.Name
 })
 
--- Example: Capture UI errors
-local function setupErrorCapture()
-   -- Capture GUI errors
-   player.PlayerGui.ChildAdded:Connect(function(gui)
-      if gui:IsA("ScreenGui") then
-         -- Monitor for GUI-related errors
-         sentry.add_breadcrumb({
-            message = "GUI added",
-            data = { gui_name = gui.Name }
-         })
-      end
-   end)
-end
+-- Add custom tags
+sentry.set_tag("game_mode", "survival")
+sentry.set_tag("level", "5")
 
-setupErrorCapture()
-```
-
-## Interactive Testing
-
-The example includes a testing GUI (`SentryTestGUI.lua`) that provides buttons to:
-
-1. **Send Test Message** - Captures a test message with info level
-2. **Trigger Test Error** - Deliberately causes an error to test error capture
-3. **Add Breadcrumb** - Adds debugging breadcrumbs
-4. **Set User Context** - Updates user information
-5. **Test Tags** - Demonstrates tag functionality
-
-## Configuration
-
-Update the DSN in the example scripts:
-
-```lua
-sentry.init({
-   dsn = "YOUR_SENTRY_DSN_HERE", -- Replace with your actual DSN
-   environment = "roblox",
-   release = "1.0.0",
-   tags = {
-      game_name = "Your Game Name",
-      game_version = "1.0.0"
-   }
+-- Add breadcrumbs for debugging
+sentry.add_breadcrumb({
+    message = "Player entered dungeon",
+    category = "game_event",
+    data = {dungeon_id = "dark_forest"}
 })
 ```
 
-## Roblox-Specific Features
+## 🐛 Troubleshooting
 
-- **HttpService Integration**: Automatically uses Roblox's HTTP service
-- **Player Context**: Collects player information automatically
-- **Game Context**: Includes game ID, place ID, and server information
-- **Studio Detection**: Detects when running in Roblox Studio vs live game
-- **Privacy Compliance**: Respects Roblox's privacy guidelines
+### Common Issues
 
-## Troubleshooting
+**"Header Content-Type is not allowed"**
+- Fixed in current versions ✅
 
-### HTTP Requests Not Working
+**"_G.SentryTest is nil"**
+- Wait a few seconds after game starts
+- Or use the built-in test functions directly
 
-1. Ensure `HttpService` is enabled in your game settings
-2. Check that your Sentry DSN is correct
-3. Verify the game has internet access (not applicable in Studio offline mode)
+**"HTTP requests not enabled"**  
+- Game Settings → Security → ✅ "Allow HTTP Requests"
 
-### Module Not Found
+**No events in Sentry dashboard**
+- Wait 10-30 seconds for events to appear
+- Check you're looking at the correct project
+- Verify DSN is correct
+- Test with manual functions
 
-1. Ensure the `sentry` module is placed in `ReplicatedStorage`
-2. Check that the folder structure matches the expected layout
-3. Verify all Lua files are properly named and accessible
+### Getting Help
 
-### Testing in Studio
+1. Use `sentry-all-in-one.lua` for easiest testing
+2. Check `FINAL_TEST_GUIDE.md` for detailed instructions  
+3. Run the macOS helper: `./simple-studio-test.sh`
 
-The example works in both Roblox Studio (for development) and live games (for production). Studio testing is recommended for initial setup and debugging.
+## 🎉 Ready to Go!
 
-## Security Notes
+The Roblox integration is production-ready. Use `sentry-all-in-one.lua` to get started immediately, then customize for your specific game needs.
 
-- Never commit your actual Sentry DSN to public repositories
-- Use environment variables or secure configuration for production DSNs
-- Be mindful of Roblox's data collection and privacy policies
-- Consider different DSNs for development vs production environments
+**Happy debugging with Sentry! 🐛→✅**
