@@ -42,6 +42,9 @@ Replace-TextInFile "$repoRoot/README.md" '(?<=release = ").*?(?=")' $newVersion
 # Update README.md - rock filename in installation example
 Replace-TextInFile "$repoRoot/README.md" 'sentry-\d+\.\d+\.\d+-\d+\.all\.rock' "sentry-$newVersion-1.all.rock"
 
+# Update DISTRIBUTION.md - rock filename references
+Replace-TextInFile "$repoRoot/DISTRIBUTION.md" 'sentry-\d+\.\d+\.\d+-\d+\.all\.rock' "sentry-$newVersion-1.all.rock"
+
 # Update LuaRocks file - update existing rockspec version and rename file
 $rockspec = Get-ChildItem "$repoRoot/*.rockspec" | Select-Object -First 1
 if ($rockspec) {
