@@ -72,7 +72,7 @@ function love.load()
     sentry.init({
         dsn = "https://your-dsn@sentry.io/project-id",
         environment = "love2d",
-        release = "0.0.3"
+        release = "0.0.4"
     })
     
     -- Optional: Enable logging integration
@@ -114,7 +114,7 @@ local sentry = require("sentry")
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
    environment = "production",
-   release = "0.0.3"
+   release = "0.0.4"
 })
 
 -- Capture a message

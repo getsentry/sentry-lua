@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.4
+
+### Various fixes & improvements
+
+- package as .rock (cdced997) by @bruno-garcia
+- love.errorhandler integration (a0f22464) by @bruno-garcia
+
 ## 0.0.3
 
 ### Features
