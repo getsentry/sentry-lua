@@ -18,6 +18,7 @@ sentry-lua-sdk-publish.zip
 rockspec-test
 *.rock
 sentry-*/
+rockspec-clean-test
 
 # IDE and editor files
 .claude/settings.local.json

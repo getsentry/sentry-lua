@@ -38,26 +38,43 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 ## Installation
 
-### LuaRocks
+### LuaRocks (macOS/Linux)
 ```bash
+# Install from LuaRocks.org - requires Unix-like system for Teal compilation
 luarocks install sentry/sentry
 ```
+**Note:** Use `sentry/sentry` (not just `sentry`) as the plain `sentry` package is owned by someone else.
 
-### LuaRocks (From Source - Development)
+### Direct Download (Windows/Cross-platform)
+For Windows or systems without make/compiler support:
+1. Download the latest `sentry-lua-sdk-publish.zip` from [GitHub Releases](https://github.com/getsentry/sentry-lua/releases)
+2. Extract the contents
+3. Add the `build/sentry` directory to your Lua `package.path`
+4. No compilation required - contains pre-built Lua files
+
+```lua
+-- Example usage after extracting to project directory
+package.path = package.path .. ";./build/?.lua;./build/?/init.lua"
+local sentry = require("sentry")
+```
+
+### Development (From Source)
 ```bash
 # Clone the repository and build from source
 git clone https://github.com/getsentry/sentry-lua.git
 cd sentry-lua
-make install
-make build
-luarocks make
+make install  # Install build dependencies
+make build    # Compile Teal sources to Lua
+luarocks make --local  # Install locally
 ```
 
-### Roblox
+### Platform-Specific Instructions
+
+#### Roblox
 Import the module through the Roblox package system or use the pre-built releases.
 
-### LÖVE 2D
-The SDK automatically detects the Love2D environment and uses the lua-https module for reliable HTTPS transport. Simply copy the SDK files into your Love2D project:
+#### LÖVE 2D
+The SDK automatically detects the Love2D environment and uses the lua-https module for reliable HTTPS transport. Use the direct download method and copy the SDK files into your Love2D project:
 
 ```lua
 -- main.lua

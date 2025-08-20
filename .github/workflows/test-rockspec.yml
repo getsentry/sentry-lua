@@ -1,0 +1,45 @@
+name: Test Rockspec
+
+# Test LuaRocks installation with 'luarocks install sentry/sentry'
+# This validates the rockspec works across multiple Lua versions on clean systems
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  pull_request:
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  test-rockspec:
+    name: Test 'luarocks install sentry/sentry' on clean system
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        lua-version: ['5.1', '5.2', '5.3', '5.4', 'luajit']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+      
+    - name: Install Lua ${{ matrix.lua-version }}
+      uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
+      with:
+        luaVersion: ${{ matrix.lua-version }}
+        
+    - name: Install LuaRocks
+      uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+      
+    - name: Test rockspec installation
+      run: make test-rockspec-clean
+      
+    - name: Show LuaRocks path for debugging
+      if: failure()
+      run: |
+        eval "$(luarocks path --local)"
+        echo "LUA_PATH: $LUA_PATH"
+        echo "LUA_CPATH: $LUA_CPATH" 
+        ls -la ~/.luarocks/lib/luarocks/rocks-5.*/sentry/ || true
