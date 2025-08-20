@@ -36,8 +36,11 @@ Replace-TextInFile "$repoRoot/tealdoc.yml" '(?<=project_version: ").*?(?=")' $ne
 # Update roblox.json
 Replace-TextInFile "$repoRoot/roblox.json" '(?<="version": ").*?(?=")' $newVersion
 
-# Update README.md
+# Update README.md - version in release examples
 Replace-TextInFile "$repoRoot/README.md" '(?<=release = ").*?(?=")' $newVersion
+
+# Update README.md - rock filename in installation example
+Replace-TextInFile "$repoRoot/README.md" 'sentry-\d+\.\d+\.\d+-\d+\.all\.rock' "sentry-$newVersion-1.all.rock"
 
 # Update LuaRocks file - update existing rockspec version and rename file
 $rockspec = Get-ChildItem "$repoRoot/*.rockspec" | Select-Object -First 1

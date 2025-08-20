@@ -44,7 +44,7 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 # https://github.com/getsentry/sentry-lua/releases
 
 # Install the downloaded rock file
-luarocks install sentry-0.0.3-1.all.rock
+luarocks install sentry-0.0.4-1.all.rock
 ```
 
 ### LuaRocks (From Source - Development)
