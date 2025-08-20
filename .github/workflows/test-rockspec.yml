@@ -1,7 +1,6 @@
 name: Test Rockspec
 
 # Test LuaRocks installation with 'luarocks install sentry/sentry'
-# This validates the rockspec works across multiple Lua versions on clean systems
 
 on:
   push:
