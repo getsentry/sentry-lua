@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish roblox-all-in-one
+.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish build-single-file
 
 # Install Teal compiler (for fresh systems without Teal)
 install-teal:
@@ -114,7 +114,8 @@ coverage-report: test-coverage
 # Clean build artifacts
 clean:
 	rm -rf build/
-	rm -f luacov.*.out coverage.info test-results.xml
+	rm -rf build-single-file/
+	rm -f luacov.*.out coverage.info test-results.xml test_single_file.lua
 
 # Install dependencies
 install:
@@ -311,10 +312,11 @@ publish: build
 	@echo "Package contents:"
 	@unzip -l sentry-lua-sdk-publish.zip
 
-# Validate Roblox all-in-one integration file
-roblox-all-in-one: build
-	@echo "Validating Roblox all-in-one integration..."
-	@./scripts/generate-roblox-all-in-one.sh
-	@echo "✅ Validated examples/roblox/sentry-all-in-one.lua"
-	@echo "📋 This file contains the complete SDK and can be copy-pasted into Roblox Studio"
+# Generate single-file SDK for environments like Roblox, Defold, Love2D
+build-single-file: build
+	@echo "Generating single-file SDK distribution..."
+	@./scripts/generate-single-file.sh
+	@echo "✅ Generated build-single-file/sentry.lua"
+	@echo "📋 Single file contains complete SDK with all functions under 'sentry' namespace"
+	@echo "📋 Use: local sentry = require('sentry')"
 

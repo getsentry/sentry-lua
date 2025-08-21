@@ -1,3 +1,82 @@
+#!/bin/bash
+#
+# Setup Love2D Single-File Example
+#
+# This script sets up a Love2D example using the single-file SDK
+#
+# Usage: ./scripts/setup-love2d-single-file.sh
+#
+
+set -e
+
+echo "🔨 Setting up Love2D Single-File Example"
+echo "======================================="
+
+LOVE2D_DIR="examples/love2d"
+SINGLE_FILE_SDK="build-single-file/sentry.lua"
+
+# Check if single-file SDK exists
+if [ ! -f "$SINGLE_FILE_SDK" ]; then
+    echo "❌ Single-file SDK not built. Run 'make build-single-file' first."
+    exit 1
+fi
+
+echo "✅ Found single-file SDK"
+
+# Create love2d directory if it doesn't exist
+mkdir -p "$LOVE2D_DIR"
+
+# Copy the single-file SDK to the Love2D directory
+echo "📋 Copying single-file SDK to Love2D directory..."
+cp "$SINGLE_FILE_SDK" "$LOVE2D_DIR/"
+
+# Check if we already have the single-file main
+if [ ! -f "$LOVE2D_DIR/main-single-file.lua" ]; then
+    echo "❌ main-single-file.lua not found. It should have been created already."
+    exit 1
+fi
+
+echo "✅ Single-file main.lua already exists"
+
+# Copy conf.lua if it doesn't exist
+if [ ! -f "$LOVE2D_DIR/conf-single-file.lua" ]; then
+    echo "📋 Creating conf-single-file.lua..."
+    cat > "$LOVE2D_DIR/conf-single-file.lua" << 'EOF'
+-- Love2D configuration for Sentry Single-File Demo
+function love.conf(t)
+    t.identity = "sentry-love2d-single-file"
+    t.version = "11.4"
+    t.console = false
+    
+    t.window.title = "Love2D Sentry Single-File Demo"
+    t.window.icon = nil
+    t.window.width = 800
+    t.window.height = 600
+    t.window.borderless = false
+    t.window.resizable = false
+    t.window.minwidth = 1
+    t.window.minheight = 1
+    t.window.fullscreen = false
+    t.window.fullscreentype = "desktop"
+    t.window.vsync = 1
+    t.window.msaa = 0
+    t.window.display = 1
+    t.window.highdpi = false
+    t.window.x = nil
+    t.window.y = nil
+    
+    t.modules.joystick = false
+    t.modules.physics = false
+    t.modules.video = false
+end
+EOF
+else
+    echo "✅ conf-single-file.lua already exists"
+fi
+
+# Create a README for the single-file setup
+echo "📋 Creating README-single-file.md..."
+cat > "$LOVE2D_DIR/README-single-file.md" << 'EOF'
 # Love2D Single-File Sentry Example
 
 This example demonstrates how to use the Sentry SDK with Love2D using the single-file distribution approach.
@@ -129,3 +208,31 @@ The single-file SDK has the same performance characteristics as the multi-file v
 - Efficient JSON encoding/decoding
 - Automatic platform detection
 - Built-in error handling
+EOF
+
+# Get file sizes for comparison
+SINGLE_FILE_SIZE=$(wc -c < "$SINGLE_FILE_SDK")
+SINGLE_FILE_SIZE_KB=$((SINGLE_FILE_SIZE / 1024))
+
+echo "✅ Generated Love2D single-file setup"
+echo "📊 Single-file SDK size: ${SINGLE_FILE_SIZE_KB} KB"
+
+echo ""
+echo "🎉 Love2D single-file setup completed!"
+echo ""  
+echo "📋 Setup summary:"
+echo "  • Single-file SDK copied to: $LOVE2D_DIR/sentry.lua"
+echo "  • Example main file: $LOVE2D_DIR/main-single-file.lua"
+echo "  • Configuration file: $LOVE2D_DIR/conf-single-file.lua"
+echo "  • Documentation: $LOVE2D_DIR/README-single-file.md"
+echo ""
+echo "🎮 To run the example:"
+echo "  1. cd $LOVE2D_DIR"
+echo "  2. mv main-single-file.lua main.lua"
+echo "  3. mv conf-single-file.lua conf.lua"  
+echo "  4. love ."
+echo ""
+echo "💡 Or create a .love file:"
+echo "  1. cd $LOVE2D_DIR"
+echo "  2. zip -r demo.love sentry.lua main-single-file.lua conf-single-file.lua"
+echo "  3. love demo.love"
