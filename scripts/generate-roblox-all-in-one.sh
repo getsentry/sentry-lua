@@ -124,24 +124,44 @@ local dsn_utils = {}
 
 function dsn_utils.parse_dsn(dsn_string)
     if not dsn_string or dsn_string == "" then
-        return nil, "DSN is required"
+        return {}, "DSN is required"
     end
     
-    local pattern = "https://([^@]+)@([^/]+)/(.+)"
-    local key, host, path = dsn_string:match(pattern)
+    local protocol, credentials, host_path = dsn_string:match("^(https?)://([^@]+)@(.+)$")
     
-    if not key or not host or not path then
-        return nil, "Invalid DSN format"
+    if not protocol or not credentials or not host_path then
+        return {}, "Invalid DSN format"
     end
     
-    local project_id = path:match("(%d+)")
+    -- Parse credentials (public_key or public_key:secret_key)
+    local public_key, secret_key = credentials:match("^([^:]+):(.+)$")
+    if not public_key then
+        public_key = credentials
+        secret_key = ""
+    end
+    
+    if not public_key or public_key == "" then
+        return {}, "Invalid DSN format"
+    end
+    
+    -- Parse host and path
+    local host, path = host_path:match("^([^/]+)(.*)$")
+    if not host or not path or path == "" then
+        return {}, "Invalid DSN format"
+    end
+    
+    -- Extract project ID from path (last numeric segment)
+    local project_id = path:match("/([%d]+)$")
     if not project_id then
-        return nil, "Could not extract project ID"
+        return {}, "Could not extract project ID from DSN"
     end
     
     return {
-        key = key,
+        protocol = protocol,
+        public_key = public_key,
+        secret_key = secret_key or "",
         host = host,
+        path = path,
         project_id = project_id
     }, nil
 end
@@ -151,8 +171,8 @@ function dsn_utils.build_ingest_url(dsn)
 end
 
 function dsn_utils.build_auth_header(dsn)
-    return string.format("Sentry sentry_version=7, sentry_key=%s, sentry_client=sentry-lua-roblox/%s", 
-                        dsn.key, version())
+    return string.format("Sentry sentry_version=7, sentry_key=%s, sentry_client=sentry-lua/%s",
+                        dsn.public_key, version())
 end
 DSN_EOF
 
@@ -186,19 +206,25 @@ function RobloxTransport:configure(config)
     self.dsn = dsn
     self.endpoint = dsn_utils.build_ingest_url(dsn)
     self.headers = {
-        ["User-Agent"] = "sentry-lua-roblox/" .. version(),
         ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn),
     }
+    
+    -- Debug DSN configuration
+    print("🔧 TRANSPORT CONFIGURATION DEBUG:")
+    print("  DSN parsed successfully: " .. tostring(dsn.public_key ~= nil))
+    print("  Endpoint: " .. self.endpoint)
+    print("  Headers configured: " .. tostring(self.headers ~= nil))
+    
     return self
 end
 
 function RobloxTransport:send(event)
-    if not _G.game then
+    if not game then
         return false, "Not in Roblox environment"
     end
 
     local success_service, HttpService = pcall(function()
-        return _G.game:GetService("HttpService") 
+        return game:GetService("HttpService") 
     end)
 
     if not success_service or not HttpService then
@@ -206,20 +232,48 @@ function RobloxTransport:send(event)
     end
 
     local body = json.encode(event)
+    
+    -- Debug output: request details
+    print("🌐 HTTP REQUEST DEBUG:")
+    print("  Endpoint: " .. self.endpoint)
+    print("  Content-Type: application/json")
+    print("  Body length: " .. string.len(body) .. " chars")
+    print("  Headers:")
+    for key, value in pairs(self.headers) do
+        if key == "X-Sentry-Auth" then
+            -- Hide sensitive key, but show structure
+            print("    " .. key .. ": " .. string.sub(value, 1, 50) .. "...")
+        else
+            print("    " .. key .. ": " .. value)
+        end
+    end
+    print("  Body preview: " .. string.sub(body, 1, 100) .. "...")
 
     local success, response = pcall(function()
         return HttpService:PostAsync(self.endpoint, body,
-            _G.Enum.HttpContentType.ApplicationJson,
+            Enum.HttpContentType.ApplicationJson,
             false,
             self.headers)
     end)
 
+    -- Debug output: response details
+    print("🌐 HTTP RESPONSE DEBUG:")
     if success then
-        print("✅ Event sent successfully!")
-        print("📊 Response: " .. string.sub(response or "", 1, 50) .. "...")
+        print("  Status: SUCCESS")
+        print("  Response type: " .. type(response))
+        if type(response) == "string" then
+            print("  Response length: " .. string.len(response) .. " chars")
+            print("  Response preview: " .. string.sub(response or "", 1, 200))
+        else
+            print("  Response content: " .. tostring(response))
+        end
+        print("✅ Event sent successfully to Sentry!")
         return true, "Event sent via Roblox HttpService"
     else
-        print("❌ Failed to send event: " .. tostring(response))
+        print("  Status: FAILED")
+        print("  Error type: " .. type(response))
+        print("  Error details: " .. tostring(response))
+        print("❌ Failed to send event to Sentry!")
         return false, "Roblox HTTP error: " .. tostring(response)
     end
 end
@@ -351,8 +405,12 @@ function Client:capture_message(message, level)
     }
     
     print("📨 Capturing message: " .. message .. " [" .. level .. "]")
+    print("🔄 About to call transport:send...")
     
-    return self.transport:send(event)
+    local success, result = self.transport:send(event)
+    print("🔄 Transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
+    
+    return success, result
 end
 
 function Client:capture_exception(exception, level)
@@ -394,8 +452,12 @@ function Client:capture_exception(exception, level)
     }
     
     print("🚨 Capturing exception: " .. (exception.message or tostring(exception)))
+    print("🔄 About to call transport:send for exception...")
     
-    return self.transport:send(event)
+    local success, result = self.transport:send(event)
+    print("🔄 Exception transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
+    
+    return success, result
 end
 
 function Client:set_user(user)
@@ -532,22 +594,102 @@ sentry.capture_exception({
     message = "Test exception from all-in-one integration"
 })
 
--- Make sentry available globally for easy access
+-- Make sentry available globally for easy access with multiple methods
 _G.sentry = sentry
+
+-- Also store in shared (if available)
+if shared then
+    shared.sentry = sentry
+end
+
+-- Store in getgenv if available (common in executors)
+if getgenv then
+    getgenv().sentry = sentry
+end
+
+-- Store in game.ReplicatedStorage for cross-script access
+if game and game:GetService("ReplicatedStorage") then
+    local replicatedStorage = game:GetService("ReplicatedStorage")
+    if not replicatedStorage:FindFirstChild("SentrySDK") then
+        local sentryValue = Instance.new("ObjectValue")
+        sentryValue.Name = "SentrySDK"
+        sentryValue.Parent = replicatedStorage
+        sentryValue:SetAttribute("Initialized", true)
+    end
+end
+
+-- Store in workspace as well for fallback
+if game and game:FindFirstChild("Workspace") then
+    local workspace = game.Workspace
+    if not workspace:FindFirstChild("SentrySDK") then
+        local sentryObject = Instance.new("ObjectValue")
+        sentryObject.Name = "SentrySDK"
+        sentryObject.Parent = workspace
+    end
+    -- Store actual reference in a persistent way
+    workspace.SentrySDK:SetAttribute("Initialized", true)
+end
+
+-- Force global persistence 
+rawset(_G, "sentry", sentry)
+
+-- Debug global variable setup
+print("\n🔧 GLOBAL VARIABLE DEBUG:")
+print("  _G.sentry exists: " .. tostring(_G.sentry ~= nil))
+print("  rawget(_G, 'sentry') exists: " .. tostring(rawget(_G, "sentry") ~= nil))
+print("  sentry.capture_message exists: " .. tostring(sentry.capture_message ~= nil))
+if _G.sentry then
+    print("  _G.sentry.capture_message exists: " .. tostring(_G.sentry.capture_message ~= nil))
+end
+if shared and shared.sentry then
+    print("  shared.sentry exists: " .. tostring(shared.sentry ~= nil))
+end
+if getgenv and getgenv().sentry then
+    print("  getgenv().sentry exists: " .. tostring(getgenv().sentry ~= nil))
+end
 
 print("\n🎉 ALL-IN-ONE INTEGRATION COMPLETED!")
 print("=" .. string.rep("=", 40))
 print("📊 Check your Sentry dashboard for test events")
 print("🔗 Dashboard: https://sentry.io/")
 print("")
-print("💡 MANUAL TESTING COMMANDS (real SDK API):")
-print("sentry.capture_message('Hello World!', 'info')")
-print("sentry.capture_exception({type = 'TestError', message = 'Manual error'})")
-print("sentry.set_user({id = '123', username = 'YourName'})")
-print("sentry.set_tag('level', '5')")
-print("sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
+print("💡 MANUAL TESTING COMMANDS (multiple access methods):")
+print("")
+print("🔹 Try these in order until one works:")
+print("_G.sentry.capture_message('Hello World!', 'info')")
+print("rawget(_G, 'sentry').capture_message('Hello rawget!', 'info')")
+print("shared.sentry.capture_message('Hello shared!', 'info')")  
+print("getgenv().sentry.capture_message('Hello getgenv!', 'info')")
+print("")
+print("🔹 Exception examples:")
+print("_G.sentry.capture_exception({type = 'TestError', message = 'Manual error'})")
+print("rawget(_G, 'sentry').capture_exception({type = 'RawgetError', message = 'Via rawget'})")
+print("")
+print("🔹 Other functions:")
+print("_G.sentry.set_user({id = '123', username = 'YourName'})")
+print("_G.sentry.set_tag('level', '5')")
+print("_G.sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
 print("")
 print("✅ Integration ready - uses real SDK " .. version() .. "!")
+
+-- Also try alternative global setups for better Roblox compatibility  
+if getgenv then
+    getgenv().sentry = sentry
+    print("📦 Also available via getgenv().sentry")
+end
+
+-- Set up a test function that can be called easily
+_G.testSentry = function()
+    print("🧪 Testing Sentry functionality...")
+    if _G.sentry then
+        _G.sentry.capture_message("Test from _G.testSentry() function", "info")
+        print("✅ Test message sent!")
+    else
+        print("❌ _G.sentry not available")
+    end
+end
+
+print("💡 Quick test function available: _G.testSentry()")
 INIT_EOF
 
 echo "✅ Generated $OUTPUT_FILE"
