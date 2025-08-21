@@ -50,34 +50,14 @@ if client then
         category = "example"
     })
     
-    -- Global test functions for manual testing
-    _G.CleanSentryTest = {
-        sendMessage = function(msg)
-            sentry.capture_message(msg or "Manual test message", "info")
-            print("📨 Sent: " .. (msg or "Manual test message"))
-        end,
-        
-        triggerError = function()
-            sentry.capture_exception({type = "TestError", message = "Manual test error"})
-            print("🚨 Error sent")
-        end,
-        
-        setUser = function(username)
-            username = username or ("CleanUser" .. math.random(100, 999))
-            sentry.set_user({id = username, username = username})
-            print("👤 User set: " .. username)
-        end,
-        
-        addBreadcrumb = function(msg)
-            msg = msg or ("Clean breadcrumb " .. os.time())
-            sentry.add_breadcrumb({message = msg, category = "manual"})
-            print("🍞 Breadcrumb: " .. msg)
-        end
-    }
+    -- Make sentry globally available
+    _G.sentry = sentry
     
     print("✅ Clean example ready!")
-    print("💡 Try: _G.CleanSentryTest.sendMessage('Hello Clean SDK!')")
-    print("💡 Try: _G.CleanSentryTest.triggerError()")
+    print("💡 Try: sentry.capture_message('Hello Clean SDK!', 'info')")
+    print("💡 Try: sentry.capture_exception({type = 'TestError', message = 'Manual error'})")
+    print("💡 Try: sentry.set_user({id = '456', username = 'TestUser'})")
+    print("💡 Try: sentry.set_tag('example', 'clean')")
 else
     error("❌ Failed to initialize Sentry")
 end

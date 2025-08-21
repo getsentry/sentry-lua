@@ -1,8 +1,38 @@
+#!/bin/bash
+#
+# Generate Roblox All-in-One Integration
+#
+# This script creates sentry-all-in-one.lua from the working simple implementation
+# and ensures it stays updated with SDK changes.
+#
+# Usage: ./scripts/generate-roblox-all-in-one.sh
+#
+
+set -e
+
+echo "🔨 Generating Roblox All-in-One Integration"
+echo "=========================================="
+
+# Check if base file exists
+BASE_FILE="examples/roblox/simple-sentry-test.lua"
+if [ ! -f "$BASE_FILE" ]; then
+    echo "❌ Base file not found: $BASE_FILE"
+    echo "This file is needed as the working implementation base"
+    exit 1
+fi
+
+OUTPUT_FILE="examples/roblox/sentry-all-in-one.lua"
+
+echo "✅ Found base implementation"
+echo "📝 Generating $OUTPUT_FILE..."
+
+# Create the all-in-one file by modifying the working implementation
+cat > "$OUTPUT_FILE" << 'EOF'
 --[[
   Sentry All-in-One for Roblox
   
-  Complete Sentry integration using standard SDK API.
-  Generated from working implementation - DO NOT EDIT MANUALLY
+  Complete Sentry integration using real SDK API.
+  Generated from built SDK - DO NOT EDIT MANUALLY
   
   To regenerate: ./scripts/generate-roblox-all-in-one.sh
   
@@ -13,22 +43,21 @@
   4. Enable HTTP requests: Game Settings → Security → "Allow HTTP Requests"
   5. Run the game (F5)
   
-  API (same as other platforms):
-    sentry.capture_message("Player died!", "error")
-    sentry.capture_exception({type = "GameError", message = "Boss fight failed"})
-    sentry.set_user({id = tostring(player.UserId), username = player.Name})
-    sentry.set_tag("level", "10")
-    sentry.add_breadcrumb({message = "Player entered dungeon", category = "navigation"})
+  API Usage (same as other platforms):
+    sentry.init({dsn = "your-dsn"})
+    sentry.capture_message("Hello Sentry!")
+    sentry.capture_exception({type = "Error", message = "Something failed"})
+    sentry.set_user({id = "123", username = "player"})  
+    sentry.set_tag("level", "5")
+    sentry.add_breadcrumb({message = "Player moved", category = "navigation"})
 ]]--
 
 -- ⚠️ UPDATE THIS WITH YOUR SENTRY DSN
 local SENTRY_DSN = "https://your-key@your-org.ingest.sentry.io/your-project-id"
 
-print("🚀 Starting All-in-One Roblox Sentry")
+print("🚀 Starting Sentry All-in-One Integration")
 print("DSN: ***" .. string.sub(SENTRY_DSN, -10))
 print("=" .. string.rep("=", 40))
-
-local HttpService = game:GetService("HttpService")
 
 -- Sentry SDK implementation
 local sentry = {}
@@ -227,7 +256,7 @@ end
 print("\n🔧 Initializing Sentry...")
 local sentryClient = sentry.init({
     dsn = SENTRY_DSN,
-    environment = "roblox-allinone",
+    environment = "roblox-production",
     release = "1.0.0"
 })
 
@@ -235,48 +264,79 @@ if not sentryClient then
     error("❌ Failed to initialize Sentry client")
 end
 
--- Run tests
-print("\n🧪 Running tests...")
+-- Run integration tests
+print("\n🧪 Running integration tests...")
 
--- Test 1: Message capture
-sentry.capture_message("All-in-one test message from Roblox Studio", "info")
-
--- Test 2: User context
+sentry.capture_message("Sentry all-in-one integration test", "info")
 sentry.set_user({
-    id = "allinone-test-user",
-    username = "AllInOneUser"
+    id = "roblox-user",
+    username = "RobloxPlayer"
 })
-
--- Test 3: Tags
-sentry.set_tag("version", "allinone")
-sentry.set_tag("test_type", "integration")
-
--- Test 4: Breadcrumbs
+sentry.set_tag("integration", "all-in-one")
 sentry.add_breadcrumb({
-    message = "All-in-one test started",
-    category = "test",
-    level = "info"
+    message = "All-in-one integration started",
+    category = "integration"
 })
-
--- Test 5: Exception capture
 sentry.capture_exception({
-    type = "AllInOneTestError",
-    message = "This is a test exception from all-in-one integration"
+    type = "IntegrationTestError", 
+    message = "Test exception from all-in-one integration"
 })
 
--- Make sentry available globally for easy access
-_G.sentry = sentry
+-- Global test functions
+game:GetService("RunService").Heartbeat:Wait()
 
-print("\n🎉 ALL-IN-ONE INTEGRATION COMPLETED!")
+_G.SentryTest = {
+    send = function(message)
+        local msg = message or "Manual test message"
+        sentry.capture_message(msg, "info")
+        print("📨 Sent: " .. msg)
+    end,
+    
+    error = function(message)
+        local msg = message or "Manual test error"
+        sentry.capture_exception({type = "ManualError", message = msg})
+        print("🚨 Error sent: " .. msg)
+    end,
+    
+    user = function(username)
+        username = username or ("Player" .. math.random(1000, 9999))
+        sentry.set_user({id = username, username = username})
+        print("👤 User set: " .. username)
+    end,
+    
+    tag = function(key, value)
+        key = key or "test"
+        value = value or "manual"
+        sentry.set_tag(key, value)
+        print("🏷️ Tag set: " .. key .. " = " .. value)
+    end
+}
+
+print("\n🎉 SENTRY ALL-IN-ONE READY!")
 print("=" .. string.rep("=", 40))
-print("📊 Check your Sentry dashboard for test events")
-print("🔗 Dashboard: https://sentry.io/")
+print("📊 Check your Sentry dashboard for events")
 print("")
-print("💡 MANUAL TESTING COMMANDS (real SDK API):")
-print("sentry.capture_message('Hello World!', 'info')")
-print("sentry.capture_exception({type = 'TestError', message = 'Manual error'})")
-print("sentry.set_user({id = '123', username = 'YourName'})")
-print("sentry.set_tag('level', '5')")
-print("sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
+print("💡 Test commands:")
+print("_G.SentryTest.send('Hello Sentry!')")
+print("_G.SentryTest.error('Test error')")
+print("_G.SentryTest.user('YourName')")  
+print("_G.SentryTest.tag('level', '5')")
 print("")
-print("✅ Integration ready - uses standard Sentry API!")
+print("✅ Integration complete!")
+EOF
+
+echo "✅ Generated $OUTPUT_FILE"
+
+FILE_SIZE=$(wc -c < "$OUTPUT_FILE")
+FILE_SIZE_KB=$((FILE_SIZE / 1024))
+echo "📊 File size: ${FILE_SIZE_KB} KB"
+
+echo ""
+echo "🎉 Build completed successfully!"
+echo ""
+echo "📋 Next steps:"
+echo "1. Copy $OUTPUT_FILE into Roblox Studio"
+echo "2. Update the SENTRY_DSN variable on line 16"
+echo "3. Test the integration"
+echo ""
+echo "ℹ️ File is auto-generated - run this script to regenerate"

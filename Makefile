@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish
+.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish roblox-all-in-one
 
 # Install Teal compiler (for fresh systems without Teal)
 install-teal:
@@ -310,4 +310,11 @@ publish: build
 	@echo ""
 	@echo "Package contents:"
 	@unzip -l sentry-lua-sdk-publish.zip
+
+# Generate Roblox all-in-one integration file
+roblox-all-in-one: build
+	@echo "Generating Roblox all-in-one integration..."
+	@./scripts/generate-roblox-all-in-one.sh
+	@echo "✅ Generated examples/roblox/sentry-all-in-one.lua"
+	@echo "📋 This file contains the complete SDK and can be copy-pasted into Roblox Studio"
 

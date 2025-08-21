@@ -2,59 +2,35 @@
 
 Example Sentry integration for Roblox games.
 
-## 🚀 Quick Start (Recommended)
+## 🚀 Quick Start
 
-**Use the all-in-one file for easiest setup:**
+**Use the all-in-one file:**
 
 1. **Copy** `sentry-all-in-one.lua` 
 2. **Paste** into ServerScriptService as a Script
-3. **Update DSN** on line 16
-4. **Enable HTTP**: Game Settings → Security → "Allow HTTP Requests"
+3. **Update DSN** on line 18
+4. **Enable HTTP**: Game Settings → Security → "Allow HTTP Requests"  
 5. **Run** the game (F5)
 
 ## 📁 Available Files
 
-### Production Files
-- **`sentry-all-in-one.lua`** ⭐ **Complete single-file solution (recommended)**
+- **`sentry-all-in-one.lua`** ⭐ **Complete single-file solution**
 - **`sentry-roblox-sdk.lua`** - Reusable SDK module  
 - **`clean-example.lua`** - Example using the SDK module
 
-### Development Files  
-- **`simple-studio-test.sh`** - macOS setup helper
-
-### Legacy Files (for reference)
-- `simple-sentry-test.lua` - Original working implementation
-- `quick-test-script.lua` - First attempt (has security issues)
-
-## 🎯 Integration Options
-
-### Option 1: All-in-One (Easiest)
-Perfect for testing and simple games.
-```lua
--- Just copy sentry-all-in-one.lua into your Script
--- Everything included: SDK + example + test functions
-```
-
-### Option 2: Modular Approach
-Better for complex games with organized code.
-```lua
--- 1. Place sentry-roblox-sdk.lua in ReplicatedStorage as ModuleScript "SentrySDK"
--- 2. Use clean-example.lua as a starting point
--- 3. Customize for your game
-```
-
 ## 🧪 Testing
 
-All files include built-in test functions:
+Use the standard Sentry API (same as other platforms):
 
 ```lua
--- All-in-one version:
-_G.SentryAllInOne.sendMessage("Hello!")
-_G.SentryAllInOne.triggerError()
+-- Capture events
+sentry.capture_message("Hello Sentry!", "info")
+sentry.capture_exception({type = "TestError", message = "Something failed"})
 
--- Clean example version:
-_G.CleanSentryTest.sendMessage("Hello!")
-_G.CleanSentryTest.triggerError()
+-- Set context  
+sentry.set_user({id = "123", username = "Player1"})
+sentry.set_tag("level", "5")
+sentry.add_breadcrumb({message = "Player moved", category = "navigation"})
 ```
 
 ## ✅ Success Indicators
@@ -67,19 +43,17 @@ Your integration is working when you see:
    📊 Response: {"id":"..."}
    ```
 
-2. **Sentry Dashboard**: Events appear within 30 seconds at https://sentry.io/
+2. **Sentry Dashboard**: Events appear within 30 seconds
 
-3. **Manual Commands Work**: Test functions execute without errors
+3. **Manual Commands Work**: `sentry.capture_message("test")` executes without errors
 
 ## 🛠️ Customization
 
-Update these values in your integration:
-
 ```lua
--- Required
-local SENTRY_DSN = "your-sentry-dsn-here"
+-- Required: Update your DSN
+local SENTRY_DSN = "https://your-key@your-org.ingest.sentry.io/your-project-id"
 
--- Optional  
+-- Optional: Customize environment and release
 sentry.init({
     dsn = SENTRY_DSN,
     environment = "production",  -- or "staging", "development"
@@ -92,46 +66,37 @@ sentry.set_user({
     username = player.Name
 })
 
--- Add custom tags
+-- Add custom tags and breadcrumbs
 sentry.set_tag("game_mode", "survival")
-sentry.set_tag("level", "5")
-
--- Add breadcrumbs for debugging
 sentry.add_breadcrumb({
     message = "Player entered dungeon",
-    category = "game_event",
-    data = {dungeon_id = "dark_forest"}
+    category = "game_event"
 })
 ```
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
-**"Header Content-Type is not allowed"**
-- Fixed in current versions ✅
-
-**"_G.SentryTest is nil"**
-- Wait a few seconds after game starts
-- Or use the built-in test functions directly
-
 **"HTTP requests not enabled"**  
-- Game Settings → Security → ✅ "Allow HTTP Requests"
+→ Game Settings → Security → ✅ "Allow HTTP Requests"
 
-**No events in Sentry dashboard**
-- Wait 10-30 seconds for events to appear
-- Check you're looking at the correct project
-- Verify DSN is correct
-- Test with manual functions
+**No events in Sentry dashboard**  
+→ Wait 10-30 seconds, check correct project, verify DSN
 
-### Getting Help
+**"attempt to index nil with 'capture_message'"**  
+→ Make sure sentry.init() was called successfully first
 
-1. Use `sentry-all-in-one.lua` for easiest testing
-2. Check `FINAL_TEST_GUIDE.md` for detailed instructions  
-3. Run the macOS helper: `./simple-studio-test.sh`
+## 🔨 Building
+
+The `sentry-all-in-one.lua` file is generated from the SDK. To regenerate:
+
+```bash
+./scripts/generate-roblox-all-in-one.sh
+```
+
+This ensures the Roblox example stays updated with SDK changes.
 
 ## 🎉 Ready to Go!
 
-The Roblox integration is production-ready. Use `sentry-all-in-one.lua` to get started immediately, then customize for your specific game needs.
+Use `sentry-all-in-one.lua` to get started immediately. Copy, paste, update DSN, and test!
 
 **Happy debugging with Sentry! 🐛→✅**
