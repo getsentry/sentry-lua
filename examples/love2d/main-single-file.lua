@@ -54,9 +54,7 @@ function love.load()
         dsn = "https://e247e6e48f8f482499052a65adaa9f6b@o117736.ingest.us.sentry.io/4504930623356928", 
         environment = "love2d-demo",
         release = "love2d-single-file@1.0.0",
-        debug = true,
-        enable_logs = true,  -- Enable logging functionality
-        flush_timeout = 2.0  -- Shorter flush timeout for testing
+        debug = true
     })
     
     -- Set user context

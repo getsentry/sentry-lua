@@ -6,34 +6,12 @@ local http = require("sentry.utils.http")
 local version = require("sentry.version")
 
 local record HttpTransport
-   endpoint: string
    envelope_endpoint: string
    timeout: number
-   headers: {string: string}
    envelope_headers: {string: string}
    dsn: dsn_utils.DSN
 end
 
-function HttpTransport:send(event: table): boolean, string
-   local body = json.encode(event)
-   
-   local request = {
-      url = self.endpoint,
-      method = "POST",
-      headers = self.headers,
-      body = body,
-      timeout = self.timeout
-   }
-   
-   local response = http.request(request)
-   
-   if response.success and response.status == 200 then
-      return true, "Event sent successfully"
-   else
-      local error_msg = response.error or "Failed to send event: " .. tostring(response.status)
-      return false, error_msg
-   end
-end
 
 -- Send transaction as envelope
 function HttpTransport:send_envelope(envelope_body: string): boolean, string
@@ -62,14 +40,8 @@ function HttpTransport:configure(config: table): transport_utils.Transport
    end
    
    self.dsn = dsn
-   self.endpoint = dsn_utils.build_ingest_url(dsn)
    self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
    self.timeout = (config as any).timeout or 30
-   self.headers = {
-      ["Content-Type"] = "application/json",
-      ["User-Agent"] = "sentry-lua/" .. version,
-      ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn)
-   }
    self.envelope_headers = {
       ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua/" .. version,

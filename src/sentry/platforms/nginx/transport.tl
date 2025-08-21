@@ -6,26 +6,25 @@ local http = require("sentry.utils.http")
 local version = require("sentry.version")
 
 local record NginxTransport
-   endpoint: string
+   envelope_endpoint: string
    timeout: number
-   headers: {string: string}
+   envelope_headers: {string: string}
+   dsn: dsn_utils.DSN
 end
 
-function NginxTransport:send(event: table): boolean, string
-   local body = json.encode(event)
-   
+function NginxTransport:send_envelope(envelope_body: string): boolean, string
    local request = {
-      url = self.endpoint,
+      url = self.envelope_endpoint,
       method = "POST",
-      headers = self.headers,
-      body = body,
+      headers = self.envelope_headers,
+      body = envelope_body,
       timeout = self.timeout
    }
    
    local response = http.request(request)
    
    if response.success and response.status == 200 then
-      return true, "Event sent successfully"
+      return true, "Envelope sent successfully"
    else
       local error_msg = response.error or "HTTP error: " .. tostring(response.status)
       return false, error_msg
@@ -39,10 +38,10 @@ function NginxTransport:configure(config: table): transport_utils.Transport
    end
    
    self.dsn = dsn
-   self.endpoint = dsn_utils.build_ingest_url(dsn)
+   self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
    self.timeout = (config as any).timeout or 30
-   self.headers = {
-      ["Content-Type"] = "application/json",
+   self.envelope_headers = {
+      ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua-nginx/" .. version,
       ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn)
    }
