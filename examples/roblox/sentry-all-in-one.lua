@@ -32,12 +32,13 @@ print("=" .. string.rep("=", 40))
 -- Embedded SDK Modules (from real build/)
 -- This ensures we use the actual SDK code with proper version info
 
+
 -- ============================================================================
 -- VERSION MODULE (from build/sentry/version.lua)
 -- ============================================================================
 
 local function version()
-    return "0.0.4"
+    return "0.0.6"
 end
 
 -- ============================================================================
@@ -90,7 +91,7 @@ function dsn_utils.build_ingest_url(dsn)
 end
 
 function dsn_utils.build_auth_header(dsn)
-    return string.format("Sentry sentry_version=7, sentry_key=%s, sentry_client=sentry-lua/%s",
+    return string.format("Sentry sentry_version=7, sentry_key=%s, sentry_client=sentry-lua-roblox/%s", 
                         dsn.key, version())
 end
 
