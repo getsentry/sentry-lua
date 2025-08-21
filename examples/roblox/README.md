@@ -1,6 +1,6 @@
 # Roblox Sentry Integration
 
-Clean, production-ready Sentry integration for Roblox games.
+Example Sentry integration for Roblox games.
 
 ## 🚀 Quick Start (Recommended)
 
@@ -21,7 +21,6 @@ Clean, production-ready Sentry integration for Roblox games.
 
 ### Development Files  
 - **`simple-studio-test.sh`** - macOS setup helper
-- **`FINAL_TEST_GUIDE.md`** - Complete testing instructions
 
 ### Legacy Files (for reference)
 - `simple-sentry-test.lua` - Original working implementation
