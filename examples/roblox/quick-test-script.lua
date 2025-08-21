@@ -1,1 +1,0 @@
-# This file has been removed - use sentry-all-in-one.lua instead
