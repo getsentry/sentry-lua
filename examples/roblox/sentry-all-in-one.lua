@@ -1,8 +1,8 @@
 --[[
   Sentry All-in-One for Roblox
   
-  Complete Sentry integration using standard SDK API.
-  Generated from working implementation - DO NOT EDIT MANUALLY
+  Complete Sentry integration using real SDK modules.
+  Generated from built SDK - DO NOT EDIT MANUALLY
   
   To regenerate: ./scripts/generate-roblox-all-in-one.sh
   
@@ -14,6 +14,7 @@
   5. Run the game (F5)
   
   API (same as other platforms):
+    sentry.init({dsn = "your-dsn"})
     sentry.capture_message("Player died!", "error")
     sentry.capture_exception({type = "GameError", message = "Boss fight failed"})
     sentry.set_user({id = tostring(player.UserId), username = player.Name})
@@ -24,46 +25,225 @@
 -- ⚠️ UPDATE THIS WITH YOUR SENTRY DSN
 local SENTRY_DSN = "https://your-key@your-org.ingest.sentry.io/your-project-id"
 
-print("🚀 Starting All-in-One Roblox Sentry")
+print("🚀 Starting Sentry All-in-One Integration")
 print("DSN: ***" .. string.sub(SENTRY_DSN, -10))
 print("=" .. string.rep("=", 40))
 
+-- Embedded SDK Modules (from real build/)
+-- This ensures we use the actual SDK code with proper version info
+
+-- ============================================================================
+-- VERSION MODULE (from build/sentry/version.lua)
+-- ============================================================================
+
+local function version()
+    return "0.0.4"
+end
+
+-- ============================================================================
+-- JSON UTILS (from build/sentry/utils/json.lua)
+-- ============================================================================
+
+local json = {}
 local HttpService = game:GetService("HttpService")
 
--- Sentry SDK implementation
-local sentry = {}
-local client = nil
+function json.encode(obj)
+    return HttpService:JSONEncode(obj)
+end
 
-function sentry.init(config)
-    config = config or {}
-    
-    if not config.dsn then
-        warn("❌ No DSN provided to sentry.init()")
-        return nil
+function json.decode(str)  
+    return HttpService:JSONDecode(str)
+end
+
+-- ============================================================================
+-- DSN UTILS (adapted from build/sentry/utils/dsn.lua)
+-- ============================================================================
+
+local dsn_utils = {}
+
+function dsn_utils.parse_dsn(dsn_string)
+    if not dsn_string or dsn_string == "" then
+        return nil, "DSN is required"
     end
     
-    client = {
-        dsn = config.dsn,
-        environment = config.environment or "roblox",
-        release = config.release or "1.0.0",
+    local pattern = "https://([^@]+)@([^/]+)/(.+)"
+    local key, host, path = dsn_string:match(pattern)
+    
+    if not key or not host or not path then
+        return nil, "Invalid DSN format"
+    end
+    
+    local project_id = path:match("(%d+)")
+    if not project_id then
+        return nil, "Could not extract project ID"
+    end
+    
+    return {
+        key = key,
+        host = host,
+        project_id = project_id
+    }, nil
+end
+
+function dsn_utils.build_ingest_url(dsn)
+    return "https://" .. dsn.host .. "/api/" .. dsn.project_id .. "/store/"
+end
+
+function dsn_utils.build_auth_header(dsn)
+    return string.format("Sentry sentry_version=7, sentry_key=%s, sentry_client=sentry-lua/%s",
+                        dsn.key, version())
+end
+
+-- ============================================================================
+-- ROBLOX TRANSPORT (from build/sentry/platforms/roblox/transport.lua)
+-- ============================================================================
+
+local RobloxTransport = {}
+RobloxTransport.__index = RobloxTransport
+
+function RobloxTransport:new()
+    local transport = setmetatable({
+        dsn = nil,
+        endpoint = nil, 
+        headers = nil
+    }, RobloxTransport)
+    return transport
+end
+
+function RobloxTransport:configure(config)
+    local dsn, err = dsn_utils.parse_dsn(config.dsn or "")
+    if err then
+        error("Invalid DSN: " .. err)
+    end
+
+    self.dsn = dsn
+    self.endpoint = dsn_utils.build_ingest_url(dsn)
+    self.headers = {
+        ["User-Agent"] = "sentry-lua-roblox/" .. version(),
+        ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn),
+    }
+    return self
+end
+
+function RobloxTransport:send(event)
+    if not _G.game then
+        return false, "Not in Roblox environment"
+    end
+
+    local success_service, HttpService = pcall(function()
+        return _G.game:GetService("HttpService") 
+    end)
+
+    if not success_service or not HttpService then
+        return false, "HttpService not available in Roblox"
+    end
+
+    local body = json.encode(event)
+
+    local success, response = pcall(function()
+        return HttpService:PostAsync(self.endpoint, body,
+            _G.Enum.HttpContentType.ApplicationJson,
+            false,
+            self.headers)
+    end)
+
+    if success then
+        print("✅ Event sent successfully!")
+        print("📊 Response: " .. string.sub(response or "", 1, 50) .. "...")
+        return true, "Event sent via Roblox HttpService"
+    else
+        print("❌ Failed to send event: " .. tostring(response))
+        return false, "Roblox HTTP error: " .. tostring(response)
+    end
+end
+
+-- ============================================================================
+-- SCOPE (from build/sentry/core/scope.lua)
+-- ============================================================================
+
+local Scope = {}
+Scope.__index = Scope
+
+function Scope:new()
+    return setmetatable({
         user = nil,
         tags = {},
-        breadcrumbs = {}
-    }
+        extra = {},
+        breadcrumbs = {},
+        level = nil
+    }, Scope)
+end
+
+function Scope:set_user(user)
+    self.user = user
+end
+
+function Scope:set_tag(key, value)
+    self.tags[key] = tostring(value)
+end
+
+function Scope:set_extra(key, value)
+    self.extra[key] = value
+end
+
+function Scope:add_breadcrumb(breadcrumb)
+    breadcrumb.timestamp = os.time()
+    table.insert(self.breadcrumbs, breadcrumb)
     
-    print("🔧 Sentry initialized successfully")
-    print("   Environment: " .. client.environment)
-    print("   Release: " .. client.release)
+    -- Keep only last 50 breadcrumbs
+    if #self.breadcrumbs > 50 then
+        table.remove(self.breadcrumbs, 1)
+    end
+end
+
+function Scope:clone()
+    local cloned = Scope:new()
+    cloned.user = self.user
+    cloned.level = self.level
+    
+    -- Deep copy tables
+    for k, v in pairs(self.tags) do
+        cloned.tags[k] = v
+    end
+    for k, v in pairs(self.extra) do
+        cloned.extra[k] = v
+    end
+    for i, crumb in ipairs(self.breadcrumbs) do
+        cloned.breadcrumbs[i] = crumb
+    end
+    
+    return cloned
+end
+
+-- ============================================================================
+-- CLIENT (from build/sentry/core/client.lua)
+-- ============================================================================
+
+local Client = {}
+Client.__index = Client
+
+function Client:new(config)
+    if not config.dsn then
+        error("DSN is required")
+    end
+    
+    local client = setmetatable({
+        transport = RobloxTransport:new(),
+        scope = Scope:new(),
+        config = config
+    }, Client)
+    
+    client.transport:configure(config)
+    
+    print("🔧 Sentry client initialized")
+    print("   Environment: " .. (config.environment or "production"))
+    print("   Release: " .. (config.release or "unknown"))
+    print("   SDK Version: " .. version())
     
     return client
 end
 
-function sentry.capture_message(message, level)
-    if not client then
-        warn("❌ Sentry not initialized - call sentry.init() first")
-        return nil
-    end
-    
+function Client:capture_message(message, level)
     level = level or "info"
     
     local event = {
@@ -72,31 +252,33 @@ function sentry.capture_message(message, level)
         },
         level = level,
         timestamp = os.time(),
-        environment = client.environment,
-        release = client.release,
+        environment = self.config.environment or "production",
+        release = self.config.release or "unknown", 
         platform = "roblox",
+        sdk = {
+            name = "sentry.lua",
+            version = version()
+        },
         server_name = "roblox-server",
-        user = client.user,
-        tags = client.tags,
-        breadcrumbs = client.breadcrumbs,
-        extra = {
-            roblox_version = version(),
-            place_id = tostring(game.PlaceId),
-            job_id = game.JobId or "unknown"
+        user = self.scope.user,
+        tags = self.scope.tags,
+        extra = self.scope.extra,
+        breadcrumbs = self.scope.breadcrumbs,
+        contexts = {
+            roblox = {
+                version = version(),
+                place_id = tostring(game.PlaceId),
+                job_id = game.JobId or "unknown"
+            }
         }
     }
     
     print("📨 Capturing message: " .. message .. " [" .. level .. "]")
     
-    return sendEventToSentry(event)
+    return self.transport:send(event)
 end
 
-function sentry.capture_exception(exception, level)
-    if not client then
-        warn("❌ Sentry not initialized")
-        return nil
-    end
-    
+function Client:capture_exception(exception, level)
     level = level or "error"
     
     local event = {
@@ -113,155 +295,155 @@ function sentry.capture_exception(exception, level)
         },
         level = level,
         timestamp = os.time(),
-        environment = client.environment,
-        release = client.release,
+        environment = self.config.environment or "production",
+        release = self.config.release or "unknown",
         platform = "roblox",
+        sdk = {
+            name = "sentry.lua",
+            version = version()
+        },
         server_name = "roblox-server",
-        user = client.user,
-        tags = client.tags,
-        breadcrumbs = client.breadcrumbs,
-        extra = {
-            roblox_version = version(),
-            place_id = tostring(game.PlaceId),
-            job_id = game.JobId or "unknown"
+        user = self.scope.user,
+        tags = self.scope.tags,
+        extra = self.scope.extra,
+        breadcrumbs = self.scope.breadcrumbs,
+        contexts = {
+            roblox = {
+                version = version(),
+                place_id = tostring(game.PlaceId),
+                job_id = game.JobId or "unknown"
+            }
         }
     }
     
     print("🚨 Capturing exception: " .. (exception.message or tostring(exception)))
     
-    return sendEventToSentry(event)
+    return self.transport:send(event)
+end
+
+function Client:set_user(user)
+    self.scope:set_user(user)
+    print("👤 User context set: " .. (user.username or user.id or "unknown"))
+end
+
+function Client:set_tag(key, value)
+    self.scope:set_tag(key, value)
+    print("🏷️ Tag set: " .. key .. " = " .. tostring(value))
+end
+
+function Client:set_extra(key, value)
+    self.scope:set_extra(key, value)
+    print("📝 Extra set: " .. key)
+end
+
+function Client:add_breadcrumb(breadcrumb)
+    self.scope:add_breadcrumb(breadcrumb)
+    print("🍞 Breadcrumb added: " .. (breadcrumb.message or "no message"))
+end
+
+-- ============================================================================
+-- MAIN SENTRY API (from build/sentry/init.lua)
+-- ============================================================================
+
+local sentry = {}
+
+function sentry.init(config)
+    if not config or not config.dsn then
+        error("Sentry DSN is required")
+    end
+    
+    sentry._client = Client:new(config)
+    return sentry._client
+end
+
+function sentry.capture_message(message, level)
+    if not sentry._client then
+        error("Sentry not initialized. Call sentry.init() first.")
+    end
+    
+    return sentry._client:capture_message(message, level)
+end
+
+function sentry.capture_exception(exception, level)
+    if not sentry._client then
+        error("Sentry not initialized. Call sentry.init() first.")
+    end
+    
+    return sentry._client:capture_exception(exception, level)
 end
 
 function sentry.set_user(user)
-    if client then
-        client.user = user
-        print("👤 User context set: " .. (user.username or user.id or "unknown"))
+    if sentry._client then
+        sentry._client:set_user(user)
     end
 end
 
 function sentry.set_tag(key, value)
-    if client then
-        client.tags[key] = tostring(value)
-        print("🏷️ Tag set: " .. key .. " = " .. tostring(value))
+    if sentry._client then
+        sentry._client:set_tag(key, value)
+    end
+end
+
+function sentry.set_extra(key, value)
+    if sentry._client then
+        sentry._client:set_extra(key, value)
     end
 end
 
 function sentry.add_breadcrumb(breadcrumb)
-    if client then
-        table.insert(client.breadcrumbs, {
-            message = breadcrumb.message,
-            category = breadcrumb.category or "default",
-            level = breadcrumb.level or "info",
-            timestamp = os.time(),
-            data = breadcrumb.data
-        })
-        
-        -- Keep only last 50 breadcrumbs
-        if #client.breadcrumbs > 50 then
-            table.remove(client.breadcrumbs, 1)
-        end
-        
-        print("🍞 Breadcrumb added: " .. (breadcrumb.message or "no message"))
+    if sentry._client then
+        sentry._client:add_breadcrumb(breadcrumb)
     end
 end
 
--- Internal function to send events to Sentry
-function sendEventToSentry(event)
-    if not client or not client.dsn then
-        print("📝 Would send event (no DSN): " .. HttpService:JSONEncode(event))
-        return true
-    end
-    
-    local success, result = pcall(function()
-        -- Parse DSN to get project info
-        local pattern = "https://([^@]+)@([^/]+)/(.+)"
-        local key, host, path = client.dsn:match(pattern)
-        
-        if not key or not host or not path then
-            error("Invalid DSN format")
-        end
-        
-        -- Extract project ID from path
-        local projectId = path:match("(%d+)")
-        if not projectId then
-            error("Could not extract project ID from DSN")
-        end
-        
-        -- Build Sentry endpoint URL
-        local url = "https://" .. host .. "/api/" .. projectId .. "/store/"
-        
-        -- Prepare headers (without Content-Type as Roblox doesn't allow it)
-        local headers = {
-            ["X-Sentry-Auth"] = string.format(
-                "Sentry sentry_version=7, sentry_key=%s, sentry_client=roblox-allinone/1.0",
-                key
-            )
-        }
-        
-        -- Send the event
-        local payload = HttpService:JSONEncode(event)
-        print("🌐 Sending to Sentry: " .. url)
-        print("📡 Payload size: " .. #payload .. " bytes")
-        
-        local response = HttpService:PostAsync(url, payload, Enum.HttpContentType.ApplicationJson, false, headers)
-        
-        print("✅ Event sent successfully!")
-        print("📊 Response: " .. string.sub(response or "no response", 1, 50) .. "...")
-        
-        return true
-    end)
-    
-    if success then
-        return true
-    else
-        warn("❌ Failed to send event: " .. tostring(result))
-        print("💡 Common issues:")
-        print("   - HTTP requests not enabled in Game Settings")
-        print("   - Invalid DSN format")
-        print("   - Network connectivity issues")
-        return false
+function sentry.flush()
+    -- No-op for Roblox (HTTP is immediate)
+end
+
+function sentry.close()
+    if sentry._client then
+        sentry._client = nil
     end
 end
 
--- Initialize Sentry
+-- Initialize Sentry with provided DSN
 print("\n🔧 Initializing Sentry...")
-local sentryClient = sentry.init({
+sentry.init({
     dsn = SENTRY_DSN,
-    environment = "roblox-allinone",
+    environment = "roblox-production",
     release = "1.0.0"
 })
 
-if not sentryClient then
-    error("❌ Failed to initialize Sentry client")
-end
+-- Run integration tests using real SDK API
+print("\n🧪 Running integration tests...")
 
--- Run tests
-print("\n🧪 Running tests...")
+-- Test message capture
+sentry.capture_message("All-in-one integration test message", "info")
 
--- Test 1: Message capture
-sentry.capture_message("All-in-one test message from Roblox Studio", "info")
-
--- Test 2: User context
+-- Test user context
 sentry.set_user({
-    id = "allinone-test-user",
-    username = "AllInOneUser"
+    id = "roblox-test-user",
+    username = "TestPlayer"
 })
 
--- Test 3: Tags
-sentry.set_tag("version", "allinone")
-sentry.set_tag("test_type", "integration")
+-- Test tags
+sentry.set_tag("integration", "all-in-one")
+sentry.set_tag("platform", "roblox")
 
--- Test 4: Breadcrumbs
+-- Test extra context
+sentry.set_extra("test_type", "integration")
+
+-- Test breadcrumbs  
 sentry.add_breadcrumb({
-    message = "All-in-one test started",
+    message = "Integration test started",
     category = "test",
     level = "info"
 })
 
--- Test 5: Exception capture
+-- Test exception capture
 sentry.capture_exception({
-    type = "AllInOneTestError",
-    message = "This is a test exception from all-in-one integration"
+    type = "IntegrationTestError",
+    message = "Test exception from all-in-one integration"
 })
 
 -- Make sentry available globally for easy access
@@ -279,4 +461,4 @@ print("sentry.set_user({id = '123', username = 'YourName'})")
 print("sentry.set_tag('level', '5')")
 print("sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
 print("")
-print("✅ Integration ready - uses standard Sentry API!")
+print("✅ Integration ready - uses real SDK " .. version() .. "!")
