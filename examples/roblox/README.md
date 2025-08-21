@@ -85,15 +85,17 @@ sentry.add_breadcrumb({
 **"attempt to index nil with 'capture_message'"**  
 → Make sure sentry.init() was called successfully first
 
-## 🔨 Building
+## 🔨 Validation
 
-The `sentry-all-in-one.lua` file is generated from the SDK. To regenerate:
+To validate the Roblox integration is ready:
 
 ```bash
+make roblox-all-in-one
+# or directly:
 ./scripts/generate-roblox-all-in-one.sh
 ```
 
-This ensures the Roblox example stays updated with SDK changes.
+This checks that the `sentry-all-in-one.lua` file contains all required components and uses the standard SDK API.
 
 ## 🎉 Ready to Go!
 

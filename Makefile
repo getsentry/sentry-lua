@@ -311,10 +311,10 @@ publish: build
 	@echo "Package contents:"
 	@unzip -l sentry-lua-sdk-publish.zip
 
-# Generate Roblox all-in-one integration file
+# Validate Roblox all-in-one integration file
 roblox-all-in-one: build
-	@echo "Generating Roblox all-in-one integration..."
+	@echo "Validating Roblox all-in-one integration..."
 	@./scripts/generate-roblox-all-in-one.sh
-	@echo "✅ Generated examples/roblox/sentry-all-in-one.lua"
+	@echo "✅ Validated examples/roblox/sentry-all-in-one.lua"
 	@echo "📋 This file contains the complete SDK and can be copy-pasted into Roblox Studio"
 
