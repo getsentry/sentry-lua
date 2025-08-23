@@ -63,7 +63,7 @@ if ($rockspec) {
 }
 
 # Update centralized version file
-Replace-TextInFile "$repoRoot/src/sentry/version.tl" '(?<=VERSION = ").*?(?=")' $newVersion
+Replace-TextInFile "$repoRoot/src/sentry/version.lua" '(?<=VERSION = ").*?(?=")' $newVersion
 
 # Update test spec files
 Replace-TextInFile "$repoRoot/spec/sentry_spec.lua" '(?<=sentry\.set_tag\("version", ").*?(?=")' $newVersion

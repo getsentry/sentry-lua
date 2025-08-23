@@ -14,9 +14,7 @@ coverage:
   ignore:
     - "spec/"
     - "examples/"
-    - "build/"
     - "*.rockspec"
-    - "Makefile"
     - "*.md"
 
 parsers:
