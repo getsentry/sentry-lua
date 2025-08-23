@@ -38,12 +38,12 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 ## Installation
 
-### Single-File Distribution (Game Engines - Roblox, Love2D, Defold)
-**Recommended for game engines and embedded environments:**
+### Single-File Distribution
+**The only supported distribution method:**
 
-1. Download or build the single-file SDK: `build-single-file/sentry.lua` (~21 KB)
+1. Download the single-file SDK: `sentry.lua` (~126 KB)
 2. Copy the single file to your project
-3. Require it directly - no complex setup needed
+3. Require it directly - no dependencies needed
 
 ```lua
 -- Just copy sentry.lua to your project and use it
@@ -57,57 +57,30 @@ sentry.start_transaction("game_loop")       -- Integrated tracing
 ```
 
 **Benefits:**
-- ✅ **Simple** - One 21KB file, no directories
-- ✅ **Complete** - All SDK features included
-- ✅ **Auto-detection** - Works across platforms automatically
-- ✅ **Same API** - Identical to LuaRocks version
+- ✅ **Simple** - One 126KB file, no directories or dependencies
+- ✅ **Complete** - All SDK features included (errors, logs, traces)
+- ✅ **Platform Agnostic** - Works across all supported platforms automatically
+- ✅ **Self-contained** - No external dependencies or modules required
+- ✅ **Envelope-only transport** - Uses modern Sentry protocol for all features
 
-To generate from source:
-```bash
-make build-single-file  # Generates build-single-file/sentry.lua
-```
-
-### LuaRocks (Standard Lua Development)
-**For traditional Lua development with separate modules:**
-
-```bash
-# Install from LuaRocks.org - requires Unix-like system for Teal compilation
-luarocks install sentry/sentry
-```
-
-```lua
--- Multi-module approach for LuaRocks users
-local sentry = require("sentry")
-local logger = require("sentry.logger")  -- Separate module
-local performance = require("sentry.performance")  -- Separate module
-```
-
-**Note:** Use `sentry/sentry` (not just `sentry`) as the plain `sentry` package is owned by someone else.
-
-### Direct Download (Legacy/Windows)
-For Windows or systems without make/compiler support:
-1. Download `sentry-lua-sdk-publish.zip` from [GitHub Releases](https://github.com/getsentry/sentry-lua/releases)
-2. Extract and add `build/sentry` directory to your Lua `package.path`
-
-```lua
-package.path = package.path .. ";./build/?.lua;./build/?/init.lua"
-local sentry = require("sentry")
-```
+**Download Options:**
+- 📦 [GitHub Releases](https://github.com/getsentry/sentry-lua/releases) - Download `sentry.lua` directly
+- 🔨 Build from source: `make build-single-file` generates `build-single-file/sentry.lua`
 
 ### Development (From Source)
 ```bash
 # Clone the repository and build from source
 git clone https://github.com/getsentry/sentry-lua.git
 cd sentry-lua
-make install  # Install build dependencies
-make build    # Compile Teal sources to Lua
-luarocks make --local  # Install locally
+make install          # Install build dependencies (Teal compiler, lua-amalg)
+make build           # Compile Teal sources to Lua
+make build-single-file  # Generate single-file SDK
 ```
 
 ### Platform-Specific Instructions
 
 #### Roblox
-Copy `build-single-file/sentry.lua` into Roblox Studio as a ModuleScript.
+Copy `sentry.lua` into Roblox Studio as a ModuleScript.
 See `examples/roblox/` for complete examples.
 
 ```lua
@@ -119,7 +92,7 @@ sentry.capture_message("Hello from Roblox!", "info")
 ```
 
 #### LÖVE 2D
-Copy `build-single-file/sentry.lua` to your Love2D project directory.
+Copy `sentry.lua` to your Love2D project directory.
 The SDK automatically detects Love2D and uses lua-https for transport.
 
 ```lua
@@ -215,9 +188,7 @@ sentry.close()
 - `sentry.start_transaction(name, description)` - Start performance transaction
 - `sentry.start_span(name, description)` - Start standalone performance span
 
-**Distribution Differences:**
-- **Single-File** (Game Engines): All functions available under `sentry` namespace
-- **LuaRocks** (Traditional Lua): Logging and tracing are separate modules: `require("sentry.logger")`, `require("sentry.performance")`
+**Note:** All functions are available under the `sentry` namespace. Logging and tracing are integrated directly into the main module.
 
 ## Distributed Tracing
 
@@ -238,14 +209,13 @@ luarocks install luasocket  # HTTP client library
 
 ```lua
 local sentry = require("sentry")
-local performance = require("sentry.performance")
 
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id"
 })
 
 -- Start a transaction
-local transaction = performance.start_transaction("user_checkout", "http.server")
+local transaction = sentry.start_transaction("user_checkout", "http.server")
 
 -- Add spans for different operations
 local validation_span = transaction:start_span("validation", "Validate cart")
@@ -265,7 +235,7 @@ transaction:finish("ok")
 #### Nested Spans and Context Management
 
 ```lua
-local transaction = performance.start_transaction("api_request", "http.server")
+local transaction = sentry.start_transaction("api_request", "http.server")
 
 -- Nested spans automatically maintain parent-child relationships
 local db_span = transaction:start_span("db.query", "Get user data")
@@ -290,7 +260,7 @@ transaction:finish("ok")
 #### Adding Context and Tags
 
 ```lua
-local transaction = performance.start_transaction("checkout", "business.process")
+local transaction = sentry.start_transaction("checkout", "business.process")
 
 -- Add tags and data to transactions
 transaction:add_tag("user_type", "premium")
@@ -334,10 +304,10 @@ The examples demonstrate:
 For custom HTTP implementations or other transport mechanisms:
 
 ```lua
-local tracing = require("sentry.tracing")
+local sentry = require("sentry")
 
 -- Get trace headers for outgoing requests
-local headers = tracing.get_request_headers("https://api.example.com")
+local headers = sentry.get_request_headers("https://api.example.com")
 -- headers will contain sentry-trace and baggage headers
 
 -- Continue trace from incoming headers on the receiving side
@@ -345,10 +315,10 @@ local incoming_headers = {
     ["sentry-trace"] = "abc123-def456-1",
     ["baggage"] = "user_id=12345,environment=prod"
 }
-tracing.continue_trace_from_request(incoming_headers)
+sentry.continue_trace_from_request(incoming_headers)
 
 -- Now start transaction with continued trace context
-local transaction = performance.start_transaction("api_handler", "http.server")
+local transaction = sentry.start_transaction("api_handler", "http.server")
 -- This transaction will be part of the distributed trace
 ```
 
@@ -367,31 +337,22 @@ The Sentry Lua SDK provides comprehensive logging capabilities with automatic ba
 
 ```lua
 local sentry = require("sentry")
-local logger = require("sentry.logger")
 
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
-   _experiments = {
-      enable_logs = true,
-      hook_print = true  -- Automatically capture print() calls
-   }
-})
-
--- Initialize logger
-logger.init({
    enable_logs = true,
+   hook_print = true,  -- Automatically capture print() calls
    max_buffer_size = 100,
-   flush_timeout = 5.0,
-   hook_print = true
+   flush_timeout = 5.0
 })
 
--- Log at different levels
-logger.trace("Fine-grained debugging information")
-logger.debug("Debugging information")
-logger.info("General information")
-logger.warn("Warning message")
-logger.error("Error occurred")
-logger.fatal("Critical failure")
+-- Log at different levels - all functions available under sentry.logger
+sentry.logger.trace("Fine-grained debugging information")
+sentry.logger.debug("Debugging information")
+sentry.logger.info("General information")
+sentry.logger.warn("Warning message")
+sentry.logger.error("Error occurred")
+sentry.logger.fatal("Critical failure")
 ```
 
 ### Structured Logging with Parameters
@@ -401,11 +362,11 @@ logger.fatal("Critical failure")
 local user_id = "user_123"
 local order_id = "order_456"
 
-logger.info("User %s placed order %s", {user_id, order_id})
-logger.error("Payment failed for user %s with error %s", {user_id, "CARD_DECLINED"})
+sentry.logger.info("User %s placed order %s", {user_id, order_id})
+sentry.logger.error("Payment failed for user %s with error %s", {user_id, "CARD_DECLINED"})
 
 -- With additional attributes
-logger.info("Order completed successfully", {user_id, order_id}, {
+sentry.logger.info("Order completed successfully", {user_id, order_id}, {
    order_total = 149.99,
    payment_method = "credit_card",
    shipping_type = "express",
@@ -426,16 +387,16 @@ print("Debug:", user_id, order_id)  -- Multiple arguments handled
 ### Log Correlation with Traces
 
 ```lua
-local transaction = performance.start_transaction("checkout", "business_process")
+local transaction = sentry.start_transaction("checkout", "business_process")
 
 -- Logs within transactions are automatically correlated
-logger.info("Starting checkout process")
+sentry.logger.info("Starting checkout process")
 
 local span = transaction:start_span("validation", "Validate cart")
-logger.debug("Validating cart for user %s", {user_id})
+sentry.logger.debug("Validating cart for user %s", {user_id})
 span:finish("ok")
 
-logger.warn("Payment processor slow: %sms", {2100})
+sentry.logger.warn("Payment processor slow: %sms", {2100})
 transaction:finish("ok")
 
 -- All logs will have trace_id linking them to the transaction
@@ -444,7 +405,8 @@ transaction:finish("ok")
 ### Advanced Configuration
 
 ```lua
-logger.init({
+sentry.init({
+   dsn = "https://your-dsn@sentry.io/project-id",
    enable_logs = true,
    max_buffer_size = 50,     -- Batch up to 50 logs
    flush_timeout = 10.0,     -- Flush every 10 seconds

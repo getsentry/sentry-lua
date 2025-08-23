@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish build-single-file
+.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d publish build-single-file
 
 # Install Teal compiler (for fresh systems without Teal)
 install-teal:
@@ -131,6 +131,7 @@ install:
 	fi
 	luarocks install luacov
 	luarocks install luacov-reporter-lcov
+	luarocks install amalg
 
 # Install all dependencies including docs tools
 install-all: install
@@ -174,7 +175,7 @@ docker-test-nginx:
 	docker-compose -f docker/nginx/docker-compose.yml up --build --abort-on-container-exit
 
 # Full test suite (excludes Love2D - requires Love2D installation)
-test-all: test test-rockspec docker-test-redis docker-test-nginx
+test-all: test docker-test-redis docker-test-nginx
 
 # Install Love2D (platform-specific)
 install-love2d:
@@ -215,7 +216,7 @@ install-love2d:
 ci-love2d: install-love2d build test-love
 
 # Full test suite including Love2D (requires Love2D to be installed)
-test-all-with-love: test test-rockspec test-love docker-test-redis docker-test-nginx
+test-all-with-love: test test-love docker-test-redis docker-test-nginx
 
 # Serve documentation locally
 serve-docs: docs
@@ -223,100 +224,57 @@ serve-docs: docs
 	@echo "Press Ctrl+C to stop"
 	python3 -m http.server 8000 --directory docs
 
-# Test rockspec by installing it in an isolated environment
-test-rockspec: build
-	@echo "Testing rockspec installation and functionality..."
-	@rm -rf rockspec-test/
-	@mkdir -p rockspec-test
-	@# Copy current rockspec and source files to test directory
-	@find . -maxdepth 1 -name "*.rockspec" -exec cp {} rockspec-test/ \;
-	@cp -r src rockspec-test/
-	@cp tlconfig.lua rockspec-test/ 2>/dev/null || true
-	@# Create a minimal test application that only tests module loading
-	@echo 'local sentry = require("sentry")' > rockspec-test/test.lua
-	@echo 'print("✅ Sentry loaded successfully")' >> rockspec-test/test.lua
-	@echo '-- Test that we can access core functions without initializing' >> rockspec-test/test.lua
-	@echo 'if type(sentry.init) == "function" then' >> rockspec-test/test.lua
-	@echo '  print("✅ Sentry API available")' >> rockspec-test/test.lua
-	@echo 'end' >> rockspec-test/test.lua
-	@# Install the rockspec locally
-	@echo "Installing rockspec locally..."
-	@cd rockspec-test && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local {} \;
+# Test single-file SDK functionality
+test-single-file: build-single-file
+	@echo "Testing single-file SDK installation and functionality..."
+	@# Create a minimal test application
+	@echo 'local sentry = require("build-single-file.sentry")' > test_single_file.lua
+	@echo 'print("✅ Single-file Sentry loaded successfully")' >> test_single_file.lua
+	@echo '-- Test that we can access core functions without initializing' >> test_single_file.lua
+	@echo 'if type(sentry.init) == "function" then' >> test_single_file.lua
+	@echo '  print("✅ Sentry API available")' >> test_single_file.lua
+	@echo '  print("✅ Logger available:", type(sentry.logger))' >> test_single_file.lua
+	@echo '  print("✅ Tracing available:", type(sentry.start_transaction))' >> test_single_file.lua
+	@echo 'end' >> test_single_file.lua
 	@# Test basic functionality
-	@echo "Testing basic Sentry functionality..."
-	@cd rockspec-test && eval "$$(luarocks path --local)" && lua test.lua
+	@echo "Testing single-file Sentry functionality..."
+	@lua test_single_file.lua
 	@# Clean up
-	@echo "Cleaning up test environment..."
-	@rm -rf rockspec-test/
-	@echo "✅ Rockspec validation completed successfully"
+	@rm -f test_single_file.lua
+	@echo "✅ Single-file SDK validation completed successfully"
 
-# Test rockspec installation on a clean system (for CI)
-test-rockspec-clean:
-	@echo "Testing rockspec installation on clean system..."
-	@rm -rf rockspec-clean-test/
-	@mkdir -p rockspec-clean-test
-	@# Copy current rockspec to test directory
-	@find . -maxdepth 1 -name "*.rockspec" -exec cp {} rockspec-clean-test/ \;
-	@# Copy source files (needed for build)
-	@cp -r src rockspec-clean-test/
-	@cp tlconfig.lua rockspec-clean-test/ 2>/dev/null || true
-	@# Create a minimal test application that only tests module loading
-	@echo 'local sentry = require("sentry")' > rockspec-clean-test/test.lua
-	@echo 'print("✅ Sentry loaded successfully")' >> rockspec-clean-test/test.lua
-	@echo '-- Test that we can access core functions without initializing' >> rockspec-clean-test/test.lua
-	@echo 'if type(sentry.init) == "function" then' >> rockspec-clean-test/test.lua
-	@echo '  print("✅ Sentry API available")' >> rockspec-clean-test/test.lua
-	@echo 'end' >> rockspec-clean-test/test.lua
-	@# Install build dependencies first  
-	@echo "Installing build dependencies..."
-	@cd rockspec-clean-test && luarocks install --local tl
-	@echo "Installing sentry rockspec with all dependencies..."
-	@cd rockspec-clean-test && find . -maxdepth 1 -name "*.rockspec" -exec echo "Found rockspec: {}" \;
-	@cd rockspec-clean-test && find . -maxdepth 1 -name "*.rockspec" -exec luarocks make --local --verbose {} \; || { echo "❌ Rockspec installation failed"; luarocks list --local; exit 1; }
-	@echo "Verifying sentry module installation..."
-	@cd rockspec-clean-test && eval "$$(luarocks path --local)" && lua -e "require('sentry'); print('✅ Sentry module found')" || { echo "❌ Sentry module not found after installation"; exit 1; }
-	@# Test functionality
-	@echo "Testing Sentry functionality..."
-	@cd rockspec-clean-test && eval "$$(luarocks path --local)" && lua test.lua
-	@# Clean up
-	@echo "Cleaning up test environment..."
-	@rm -rf rockspec-clean-test/
-	@echo "✅ Clean system rockspec validation completed successfully"
-
-# Create publish package for direct download (Windows/cross-platform)
-# Contains pre-compiled Lua files, no LuaRocks or compilation required
-publish: build
-	@echo "Creating publish package for direct download (Windows/cross-platform)..."
-	@echo "This package contains pre-compiled Lua files and does not require LuaRocks or compilation."
-	@rm -f sentry-lua-sdk-publish.zip
+# Create publish package with single file and documentation
+publish: build-single-file
+	@echo "Creating publish package with single-file SDK..."
+	@rm -f sentry-lua-sdk.zip
 	@# Create temporary directory for packaging
 	@mkdir -p publish-temp
-	@# Copy required files
+	@# Copy the single-file SDK (main deliverable)
+	@cp build-single-file/sentry.lua publish-temp/ || { echo "❌ sentry.lua not found. Run 'make build-single-file' first."; exit 1; }
+	@# Copy documentation and examples
 	@cp README.md publish-temp/ || { echo "❌ README.md not found"; exit 1; }
-	@cp example-event.png publish-temp/ || { echo "❌ example-event.png not found"; exit 1; }
 	@cp CHANGELOG.md publish-temp/ || { echo "❌ CHANGELOG.md not found"; exit 1; }
-	@cp roblox.json publish-temp/ || { echo "❌ roblox.json not found"; exit 1; }
-	@# Copy build directory (recursively)
-	@cp -r build publish-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
-	@# Copy examples directory (recursively)
 	@cp -r examples publish-temp/ || { echo "❌ examples directory not found"; exit 1; }
 	@# Create zip file
-	@cd publish-temp && zip -r ../sentry-lua-sdk-publish.zip . > /dev/null
+	@cd publish-temp && zip -r ../sentry-lua-sdk.zip . > /dev/null
 	@# Clean up temporary directory
 	@rm -rf publish-temp
-	@echo "✅ Publish package created: sentry-lua-sdk-publish.zip"
-	@echo "📦 This package is for direct download installation (Windows/cross-platform)"  
-	@echo "📦 Contains pre-compiled Lua files - no LuaRocks or compilation required"
+	@echo "✅ Single-file SDK package created: sentry-lua-sdk.zip"
+	@echo "📦 Contains single sentry.lua file (~126KB) with complete SDK functionality"  
+	@echo "📦 No dependencies, no installation required - just copy and use"
 	@echo "📦 Upload to GitHub Releases for user download"
 	@echo ""
 	@echo "Package contents:"
-	@unzip -l sentry-lua-sdk-publish.zip
+	@unzip -l sentry-lua-sdk.zip
 
-# Generate single-file SDK for environments like Roblox, Defold, Love2D
+# Generate single-file SDK for all environments (Roblox, Defold, Love2D, Standard Lua)
 build-single-file: build
-	@echo "Generating single-file SDK distribution..."
-	@./scripts/generate-single-file.sh
-	@echo "✅ Generated build-single-file/sentry.lua"
-	@echo "📋 Single file contains complete SDK with all functions under 'sentry' namespace"
+	@echo "Generating single-file SDK distribution using lua-amalg..."
+	@./scripts/generate-single-file-amalg.sh
+	@echo "✅ Generated build-single-file/sentry.lua (~126KB)"
+	@echo "📋 Single file contains complete SDK with envelope-only transport"
+	@echo "📋 All functions available under 'sentry' namespace"
+	@echo "📋 Includes: errors, logging (sentry.logger.*), tracing (sentry.start_transaction)"
+	@echo "📋 Platform auto-detection: Love2D, Roblox, nginx, Redis, standard Lua"
 	@echo "📋 Use: local sentry = require('sentry')"
 
