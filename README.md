@@ -480,11 +480,6 @@ make serve-docs  # Serve docs at http://localhost:8000
 make lint-soft   # Lint with warnings (permissive)
 ```
 
-**Windows:**
-```cmd
-build.bat serve-docs  # Serve docs locally
-```
-
 ### Testing
 ```bash
 # Unit tests
