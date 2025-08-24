@@ -72,12 +72,6 @@ local function parse_dsn(dsn_string: string): DSN, string
    }, nil  -- Return nil instead of empty string for no error
 end
 
-local function build_ingest_url(dsn: DSN): string
-   return string.format("%s://%s/api/%s/store/", 
-      dsn.protocol, 
-      dsn.host, 
-      dsn.project_id)
-end
 
 local function build_envelope_url(dsn: DSN): string
    return string.format("%s://%s/api/%s/envelope/", 
@@ -103,7 +97,6 @@ end
 
 return {
    parse_dsn = parse_dsn,
-   build_ingest_url = build_ingest_url,
    build_envelope_url = build_envelope_url,
    build_auth_header = build_auth_header,
    DSN = DSN

@@ -2,6 +2,11 @@
 
 This directory contains practical examples demonstrating how to use the Sentry Lua SDK for error monitoring and performance tracking.
 
+## Distribution Methods
+
+- **Single-File Distribution** (Game Engines): Copy `build-single-file/sentry.lua` (~21 KB) to your project. All functions available under `sentry` namespace.
+- **LuaRocks Distribution** (Traditional Lua): Install via `luarocks install sentry/sentry` and require modules separately.
+
 ## Basic Usage Examples
 
 ### `basic.lua`
@@ -87,3 +92,24 @@ After running examples, check your Sentry project:
 - **Discover** tab: Query events and trace data
 
 The distributed tracing examples will show connected spans across processes, demonstrating how requests flow through your system.
+
+## Platform-Specific Examples
+
+### Roblox
+- **`roblox/sentry.lua`**: Complete Roblox example with embedded single-file SDK
+- **`roblox/README.md`**: Roblox setup guide
+
+Copy the example file into Roblox Studio as a Script for immediate use.
+
+### Love2D
+- **`love2d/main.lua`**: Love2D example using single-file SDK  
+- **`love2d/conf.lua`**: Love2D configuration
+- **`love2d/sentry.lua`**: Single-file SDK copied to project
+- **`love2d/README.md`**: Complete setup guide
+- **`love2d/main-luarocks.lua`**: LuaRocks version (for reference)
+
+### Build Examples
+To generate the single-file SDK and update all platform examples:
+```bash
+make build-single-file  # Generates build-single-file/sentry.lua
+```

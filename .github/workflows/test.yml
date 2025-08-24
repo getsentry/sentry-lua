@@ -130,16 +130,11 @@ jobs:
     - name: Run tests with coverage
       run: make coverage-report
     
-    - name: Validate rockspec installation
+    - name: Validate single-file SDK
       shell: bash
       run: |
-        # For Ubuntu LuaJIT, update the rockspec test to use local luarocks path  
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
-          eval "$(luarocks path --local)"
-          make test-rockspec
-        else
-          make test-rockspec
-        fi
+        echo "Testing single-file SDK generation and functionality..."
+        make test-single-file
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -168,32 +163,19 @@ jobs:
         file: ./test-results.xml
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Create distribution zip
+    - name: Create single-file distribution
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       shell: bash
       run: |
-        echo "Creating distribution zip for Love2D and other non-LuaRocks users..."
+        echo "Creating single-file distribution package..."
         
-        # Create temporary directory for packaging
-        mkdir -p dist-temp
+        # Generate single-file SDK
+        make build-single-file
         
-        # Copy required files and directories
-        cp CHANGELOG.md dist-temp/ || { echo "❌ CHANGELOG.md not found"; exit 1; }
-        cp README.md dist-temp/ || { echo "❌ README.md not found"; exit 1; }
+        # Use the make publish target
+        make publish
         
-        # Copy directories (recursively)
-        cp -r build dist-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
-        cp -r spec dist-temp/ || { echo "❌ spec directory not found"; exit 1; }
-        cp -r examples dist-temp/ || { echo "❌ examples directory not found"; exit 1; }
-        
-        # Create zip file
-        cd dist-temp && zip -r ../sentry-lua-sdk.zip . > /dev/null
-        cd ..
-        
-        # Clean up temporary directory
-        rm -rf dist-temp
-        
-        echo "✅ Distribution zip created: sentry-lua-sdk.zip"
+        echo "✅ Single-file distribution created: sentry-lua-sdk.zip"
         
         # Show contents for verification
         echo "Distribution zip contents:"

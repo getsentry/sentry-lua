@@ -78,7 +78,41 @@ local function build_log_envelope(log_records: {any}): string
    return table.concat(envelope_parts, "\n")
 end
 
+---Build an envelope for error/message events
+---@param event table Event data (error, message, etc.)
+---@return string envelope_body The formatted envelope body
+local function build_error_envelope(event: table): string
+   -- Get current timestamp in RFC 3339 format
+   local sent_at = os.date("!%Y-%m-%dT%H:%M:%SZ")
+   
+   -- Envelope header
+   local envelope_header = {
+      event_id = event.event_id,
+      sent_at = sent_at
+   }
+   
+   -- Event JSON payload
+   local event_json = json.encode(event)
+   local payload_length = string.len(event_json)
+   
+   -- Item header  
+   local item_header = {
+      type = "event",
+      length = payload_length
+   }
+   
+   -- Build envelope: header + newline + item header + newline + payload
+   local envelope_parts: {string} = {
+      json.encode(envelope_header),
+      json.encode(item_header),
+      event_json
+   }
+   
+   return table.concat(envelope_parts, "\n")
+end
+
 return {
    build_transaction_envelope = build_transaction_envelope,
-   build_log_envelope = build_log_envelope
+   build_log_envelope = build_log_envelope,
+   build_error_envelope = build_error_envelope
 }

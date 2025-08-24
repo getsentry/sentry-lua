@@ -5,13 +5,13 @@ local json = require("sentry.utils.json")
 local version = require("sentry.version")
 
 local record RobloxTransport
-   endpoint: string
+   envelope_endpoint: string
    timeout: number
-   headers: {string: string}
+   envelope_headers: {string: string}
    dsn: dsn_utils.DSN
 end
 
-function RobloxTransport:send(event: table): boolean, string
+function RobloxTransport:send_envelope(envelope_body: string): boolean, string
    -- Check if we're in Roblox environment
    if not _G.game then
       return false, "Not in Roblox environment"
@@ -25,18 +25,16 @@ function RobloxTransport:send(event: table): boolean, string
       return false, "HttpService not available in Roblox"
    end
    
-   local body = json.encode(event)
-   
    local success, response = pcall(function()
-      return HttpService:PostAsync(self.endpoint, body, 
-         (_G as any).Enum.HttpContentType.ApplicationJson, 
+      return HttpService:PostAsync(self.envelope_endpoint, envelope_body, 
+         (_G as any).Enum.HttpContentType.TextPlain, 
          false, -- compress 
-         self.headers
+         self.envelope_headers
       )
    end)
    
    if success then
-      return true, "Event sent via Roblox HttpService"
+      return true, "Envelope sent via Roblox HttpService"
    else
       return false, "Roblox HTTP error: " .. tostring(response)
    end
@@ -49,10 +47,10 @@ function RobloxTransport:configure(config: table): transport_utils.Transport
    end
    
    self.dsn = dsn
-   self.endpoint = dsn_utils.build_ingest_url(dsn)
+   self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
    self.timeout = (config as any).timeout or 30
-   self.headers = {
-      ["Content-Type"] = "application/json",
+   self.envelope_headers = {
+      ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua-roblox/" .. version,
       ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn)
    }

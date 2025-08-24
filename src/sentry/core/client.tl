@@ -4,6 +4,7 @@ local stacktrace = require("sentry.utils.stacktrace")
 local serialize = require("sentry.utils.serialize")
 local runtime_utils = require("sentry.utils.runtime")
 local os_utils = require("sentry.utils.os")
+local envelope = require("sentry.utils.envelope")
 local types = require("sentry.types")
 
 -- Load platform detectors
@@ -99,13 +100,15 @@ function Client:capture_message(message: string, level: string): string
       end
    end
    
-   local success, err = (self.transport as any):send(event)
+   -- Build envelope and send via envelope transport only
+   local envelope_body = envelope.build_error_envelope(event)
+   local success, err = (self.transport as any):send_envelope(envelope_body)
    
    if self.options.debug then
       if success then
-         print("[Sentry] Event sent: " .. event.event_id)
+         print("[Sentry] Event sent via envelope: " .. event.event_id)
       else
-         print("[Sentry] Failed to send event: " .. tostring(err))
+         print("[Sentry] Failed to send event envelope: " .. tostring(err))
       end
    end
    
@@ -137,13 +140,15 @@ function Client:capture_exception(exception: table, level: string): string
       end
    end
    
-   local success, err = (self.transport as any):send(event)
+   -- Build envelope and send via envelope transport only
+   local envelope_body = envelope.build_error_envelope(event)
+   local success, err = (self.transport as any):send_envelope(envelope_body)
    
    if self.options.debug then
       if success then
-         print("[Sentry] Exception sent: " .. event.event_id)
+         print("[Sentry] Exception sent via envelope: " .. event.event_id)
       else
-         print("[Sentry] Failed to send exception: " .. tostring(err))
+         print("[Sentry] Failed to send exception envelope: " .. tostring(err))
       end
    end
    

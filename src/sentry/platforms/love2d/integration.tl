@@ -1,5 +1,6 @@
 -- Love2D Integration with error handler hooking
 local transport_utils = require("sentry.utils.transport")
+local envelope = require("sentry.utils.envelope")
 
 local record Love2DIntegration
    transport: transport_utils.Transport
@@ -84,14 +85,15 @@ local function hook_error_handler(client: any): function, function
             end
          end
          
-         -- Send event directly via transport
+         -- Send event via envelope transport only
          if client.transport then
-            local success, err = client.transport:send(event)
+            local envelope_body = envelope.build_error_envelope(event)
+            local success, err = client.transport:send_envelope(envelope_body)
             if client.options.debug then
                if success then
-                  print("[Sentry] Fatal error sent: " .. event.event_id)
+                  print("[Sentry] Fatal error sent via envelope: " .. event.event_id)
                else
-                  print("[Sentry] Failed to send fatal error: " .. tostring(err))
+                  print("[Sentry] Failed to send fatal error envelope: " .. tostring(err))
                end
             end
             
