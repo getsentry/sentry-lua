@@ -24,7 +24,7 @@ local function init(options)
     sentry._client = Client:new(options)
     sentry._scope = Scope:new()
 end
-local function capture_message(message)
+local function capture_message(message, level)
     if not sentry._client then
         logger.debug("Sentry SDK has not been initialized")
         return
