@@ -32,17 +32,12 @@ local function process_database_config(environment, service_name, retry_count)
 end
 
 local function validate_user_permissions(user_id, action_type, resource_id)
-   local permissions = {"read", "write", "admin"}
-   local session_data = {expires_at = os.time() + 3600, csrf_token = "abc123"}
-
    -- Process permissions validation
    return process_database_config("production", "user_service", 3)
 end
 
 local function main(app_version, startup_mode)
    print("=== Sentry.wrap() Demo === (v" .. app_version .. ", mode: " .. startup_mode .. ")")
-   local instance_id = "inst_" .. math.random(1000, 9999)
-
    -- Add some context
    sentry.add_breadcrumb({
       message = "Application started",
@@ -95,8 +90,6 @@ print("\n=== Method 2: Custom Error Handler ===")
 -- Method 2: Custom error handler - You can handle errors gracefully
 local function attempt_risky_operation(operation_id, max_retries, timeout_seconds)
    local cache_key = "op_" .. operation_id
-   local start_time = os.time()
-
    print("Attempting risky operation (ID: " .. operation_id .. ", retries: " .. max_retries .. ")...")
 
    local risky_data = nil
@@ -132,8 +125,6 @@ print("\n=== Comparison with Manual Approach ===")
 -- Show equivalent manual approach for comparison
 local function manual_error_simulation(task_name, priority_level)
    local task_id = "task_" .. math.random(100, 999)
-   local worker_id = "worker_A1"
-
    error("Manual error handling for " .. task_name .. " (priority: " .. priority_level .. ", task: " .. task_id .. ")")
 end
 
@@ -156,6 +147,6 @@ sentry.close()
 
 print("\n=== Summary ===")
 print("• sentry.wrap(main_function) - Simple automatic error capture")
-print("• sentry.wrap(main_function, error_handler) - Custom error handling") 
+print("• sentry.wrap(main_function, error_handler) - Custom error handling")
 print("• All Sentry context (user, tags, breadcrumbs) is automatically included")
 print("• Much simpler than manually wrapping every error-prone operation")

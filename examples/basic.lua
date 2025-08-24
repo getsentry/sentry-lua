@@ -141,7 +141,7 @@ sentry.with_scope(function(scope)
 
    xpcall(safe_string_concat, function(err)
       sentry.capture_exception({
-         type = "TypeError", 
+         type = "TypeError",
          message = "String concatenation error: " .. tostring(err)
       })
       return err
@@ -179,7 +179,6 @@ end)
 
 -- Original database error for comparison with parameters
 local function database_query(query_type, table_name, timeout_ms)
-   local connection_attempts = 3
    local last_error = "Connection timeout after " .. timeout_ms .. "ms"
    error("Database query failed: " .. query_type .. " on " .. table_name .. " (" .. last_error .. ")")
 end
@@ -227,7 +226,7 @@ sentry.with_scope(function(scope)
 
    xpcall(function() manual_error_demo("update", "res_456") end, function(err)
       sentry.capture_exception({
-         type = "ManuallyHandledError", 
+         type = "ManuallyHandledError",
          message = "Manually captured: " .. tostring(err)
       })
       print("[Manual] Error captured and handled gracefully")

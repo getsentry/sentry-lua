@@ -67,7 +67,7 @@ function love.load()
         print("[Debug] No transport found!")
     end
 
-    -- Initialize logger  
+    -- Initialize logger
     logger.init({
         enable_logs = true,
         max_buffer_size = 5,
@@ -96,7 +96,7 @@ function love.load()
         -- Top part of S
         {120, 100}, {180, 100}, {180, 130}, {150, 130}, {150, 150},
         {180, 150}, {180, 180}, {120, 180}, {120, 150}, {150, 150},
-        -- Bottom part of S  
+        -- Bottom part of S
         {150, 170}, {120, 170}, {120, 200}, {180, 200}
     }
 
@@ -129,7 +129,7 @@ function love.load()
                 logger.error("Graphics rendering failure")
                 error("Love2DRenderError: Failed to render game object at frame " .. love.timer.getTime())
             else
-                logger.error("Generic game error occurred")  
+                logger.error("Generic game error occurred")
                 error("Love2DGameError: Unexpected game state error in category " .. tostring(category))
             end
         end
@@ -162,7 +162,7 @@ function love.update(dt)
     if button.hover and not was_hover then
         logger.debug("Button hover state: entered")
     elseif not button.hover and was_hover then
-        logger.debug("Button hover state: exited")  
+        logger.debug("Button hover state: exited")
     end
 
     -- Flush Sentry transport periodically
@@ -222,7 +222,7 @@ function love.draw()
     love.graphics.setColor(1, 1, 1, 1)
     local text_width = game.button_font:getWidth(button.text)
     local text_height = game.button_font:getHeight()
-    love.graphics.print(button.text, 
+    love.graphics.print(button.text,
                        button.x + (button.width - text_width) / 2,
                        button.y + (button.height - text_height) / 2)
 
@@ -245,7 +245,7 @@ function love.draw()
     love.graphics.setFont(game.button_font)
     love.graphics.setColor(1, 1, 1, 1)
     local fatal_text_width = game.button_font:getWidth(fatal_button.text)
-    love.graphics.print(fatal_button.text, 
+    love.graphics.print(fatal_button.text,
                        fatal_button.x + (fatal_button.width - fatal_text_width) / 2,
                        fatal_button.y + (fatal_button.height - text_height) / 2)
 
@@ -274,7 +274,7 @@ function love.mousepressed(x, y, button_num, istouch, presses)
             -- Add breadcrumb before triggering error
             sentry.add_breadcrumb({
                 message = "Error button clicked",
-                category = "user_interaction", 
+                category = "user_interaction",
                 level = "info",
                 data = {
                     mouse_x = x,
@@ -314,7 +314,7 @@ function love.mousepressed(x, y, button_num, istouch, presses)
             -- Add breadcrumb before triggering fatal error
             sentry.add_breadcrumb({
                 message = "Fatal error button clicked - will trigger love.errorhandler",
-                category = "user_interaction", 
+                category = "user_interaction",
                 level = "warning",
                 data = {
                     mouse_x = x,
@@ -378,7 +378,7 @@ function love.keypressed(key)
 
         sentry.add_breadcrumb({
             message = "Fatal error triggered via keyboard (F key)",
-            category = "keyboard_interaction", 
+            category = "keyboard_interaction",
             level = "warning",
             data = {
                 test_type = "fatal_error_keyboard"

@@ -34,7 +34,7 @@ function love.conf(t)
 
     -- Disable unused modules for faster startup and smaller memory footprint
     t.modules.audio = true                  -- Enable audio module
-    t.modules.data = false                  -- Enable data module  
+    t.modules.data = false                  -- Enable data module
     t.modules.event = true                  -- Enable event module
     t.modules.font = true                   -- Enable font module
     t.modules.graphics = true               -- Enable graphics module
