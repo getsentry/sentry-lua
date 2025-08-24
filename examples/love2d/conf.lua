@@ -8,10 +8,10 @@ function love.conf(t)
     t.accelerometerjoystick = false         -- Enable accelerometer on mobile devices
     t.externalstorage = false               -- True to save files outside of the app folder
     t.gammacorrect = false                  -- Enable gamma-correct rendering
-    
+
     t.audio.mic = false                     -- Request microphone permission
     t.audio.mixwithsystem = true           -- Keep background music playing
-    
+
     t.window.title = "Love2D Sentry Integration Demo"
     t.window.icon = nil                     -- Icon file path
     t.window.width = 800                    -- Window width
@@ -31,7 +31,7 @@ function love.conf(t)
     t.window.usedpiscale = true             -- Enable automatic DPI scaling
     t.window.x = nil                        -- Window position x-coordinate
     t.window.y = nil                        -- Window position y-coordinate
-    
+
     -- Disable unused modules for faster startup and smaller memory footprint
     t.modules.audio = true                  -- Enable audio module
     t.modules.data = false                  -- Enable data module  

@@ -24,12 +24,12 @@ function Client:capture_message(message)
         diagnostic_logger.error("Transport not initialized")
         return nil
     end
-    
+
     local event = {
         message = message,
         level = "info",
     }
-    
+
     return self.transport:send_event(event)
 end
 

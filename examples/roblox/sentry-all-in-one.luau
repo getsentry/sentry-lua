@@ -1,18 +1,18 @@
 --[[
   Sentry All-in-One for Roblox
-  
+
   Complete Sentry integration using real SDK modules.
   Generated from built SDK - DO NOT EDIT MANUALLY
-  
+
   To regenerate: ./scripts/generate-roblox-all-in-one.sh
-  
+
   USAGE:
   1. Copy this entire file
-  2. Paste into ServerScriptService as a Script  
+  2. Paste into ServerScriptService as a Script
   3. Update SENTRY_DSN below
   4. Enable HTTP requests: Game Settings → Security → "Allow HTTP Requests"
   5. Run the game (F5)
-  
+
   API (same as other platforms):
     sentry.init({dsn = "your-dsn"})
     sentry.capture_message("Player died!", "error")
@@ -52,7 +52,7 @@ function json.encode(obj)
     return HttpService:JSONEncode(obj)
 end
 
-function json.decode(str)  
+function json.decode(str)
     return HttpService:JSONDecode(str)
 end
 
@@ -66,36 +66,36 @@ function dsn_utils.parse_dsn(dsn_string)
     if not dsn_string or dsn_string == "" then
         return {}, "DSN is required"
     end
-    
+
     local protocol, credentials, host_path = dsn_string:match("^(https?)://([^@]+)@(.+)$")
-    
+
     if not protocol or not credentials or not host_path then
         return {}, "Invalid DSN format"
     end
-    
+
     -- Parse credentials (public_key or public_key:secret_key)
     local public_key, secret_key = credentials:match("^([^:]+):(.+)$")
     if not public_key then
         public_key = credentials
         secret_key = ""
     end
-    
+
     if not public_key or public_key == "" then
         return {}, "Invalid DSN format"
     end
-    
+
     -- Parse host and path
     local host, path = host_path:match("^([^/]+)(.*)$")
     if not host or not path or path == "" then
         return {}, "Invalid DSN format"
     end
-    
+
     -- Extract project ID from path (last numeric segment)
     local project_id = path:match("/([%d]+)$")
     if not project_id then
         return {}, "Could not extract project ID from DSN"
     end
-    
+
     return {
         protocol = protocol,
         public_key = public_key,
@@ -125,7 +125,7 @@ RobloxTransport.__index = RobloxTransport
 function RobloxTransport:new()
     local transport = setmetatable({
         dsn = nil,
-        endpoint = nil, 
+        endpoint = nil,
         headers = nil
     }, RobloxTransport)
     return transport
@@ -142,13 +142,13 @@ function RobloxTransport:configure(config)
     self.headers = {
         ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn),
     }
-    
+
     -- Debug DSN configuration
     print("🔧 TRANSPORT CONFIGURATION DEBUG:")
     print("  DSN parsed successfully: " .. tostring(dsn.public_key ~= nil))
     print("  Endpoint: " .. self.endpoint)
     print("  Headers configured: " .. tostring(self.headers ~= nil))
-    
+
     return self
 end
 
@@ -157,16 +157,16 @@ function RobloxTransport:send(event)
         return false, "Not in Roblox environment"
     end
 
-    local success_service, HttpService = pcall(function()
-        return game:GetService("HttpService") 
+    local success_service, _HttpService = pcall(function()
+        return game:GetService("HttpService")
     end)
 
-    if not success_service or not HttpService then
+    if not success_service or not _HttpService then
         return false, "HttpService not available in Roblox"
     end
 
     local body = json.encode(event)
-    
+
     -- Debug output: request details
     print("🌐 HTTP REQUEST DEBUG:")
     print("  Endpoint: " .. self.endpoint)
@@ -184,7 +184,7 @@ function RobloxTransport:send(event)
     print("  Body preview: " .. string.sub(body, 1, 100) .. "...")
 
     local success, response = pcall(function()
-        return HttpService:PostAsync(self.endpoint, body,
+        return _HttpService:PostAsync(self.endpoint, body,
             Enum.HttpContentType.ApplicationJson,
             false,
             self.headers)
@@ -244,7 +244,7 @@ end
 function Scope:add_breadcrumb(breadcrumb)
     breadcrumb.timestamp = os.time()
     table.insert(self.breadcrumbs, breadcrumb)
-    
+
     -- Keep only last 50 breadcrumbs
     if #self.breadcrumbs > 50 then
         table.remove(self.breadcrumbs, 1)
@@ -255,7 +255,7 @@ function Scope:clone()
     local cloned = Scope:new()
     cloned.user = self.user
     cloned.level = self.level
-    
+
     -- Deep copy tables
     for k, v in pairs(self.tags) do
         cloned.tags[k] = v
@@ -266,7 +266,7 @@ function Scope:clone()
     for i, crumb in ipairs(self.breadcrumbs) do
         cloned.breadcrumbs[i] = crumb
     end
-    
+
     return cloned
 end
 
@@ -281,26 +281,26 @@ function Client:new(config)
     if not config.dsn then
         error("DSN is required")
     end
-    
+
     local client = setmetatable({
         transport = RobloxTransport:new(),
         scope = Scope:new(),
         config = config
     }, Client)
-    
+
     client.transport:configure(config)
-    
+
     print("🔧 Sentry client initialized")
     print("   Environment: " .. (config.environment or "production"))
     print("   Release: " .. (config.release or "unknown"))
     print("   SDK Version: " .. version())
-    
+
     return client
 end
 
 function Client:capture_message(message, level)
     level = level or "info"
-    
+
     local event = {
         message = {
             message = message
@@ -308,7 +308,7 @@ function Client:capture_message(message, level)
         level = level,
         timestamp = os.time(),
         environment = self.config.environment or "production",
-        release = self.config.release or "unknown", 
+        release = self.config.release or "unknown",
         platform = "roblox",
         sdk = {
             name = "sentry.lua",
@@ -327,19 +327,19 @@ function Client:capture_message(message, level)
             }
         }
     }
-    
+
     print("📨 Capturing message: " .. message .. " [" .. level .. "]")
     print("🔄 About to call transport:send...")
-    
+
     local success, result = self.transport:send(event)
     print("🔄 Transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
-    
+
     return success, result
 end
 
 function Client:capture_exception(exception, level)
     level = level or "error"
-    
+
     local event = {
         exception = {
             values = {
@@ -374,13 +374,13 @@ function Client:capture_exception(exception, level)
             }
         }
     }
-    
+
     print("🚨 Capturing exception: " .. (exception.message or tostring(exception)))
     print("🔄 About to call transport:send for exception...")
-    
+
     local success, result = self.transport:send(event)
     print("🔄 Exception transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
-    
+
     return success, result
 end
 
@@ -414,7 +414,7 @@ function sentry.init(config)
     if not config or not config.dsn then
         error("Sentry DSN is required")
     end
-    
+
     sentry._client = Client:new(config)
     return sentry._client
 end
@@ -423,7 +423,7 @@ function sentry.capture_message(message, level)
     if not sentry._client then
         error("Sentry not initialized. Call sentry.init() first.")
     end
-    
+
     return sentry._client:capture_message(message, level)
 end
 
@@ -431,7 +431,7 @@ function sentry.capture_exception(exception, level)
     if not sentry._client then
         error("Sentry not initialized. Call sentry.init() first.")
     end
-    
+
     return sentry._client:capture_exception(exception, level)
 end
 
@@ -496,7 +496,7 @@ sentry.set_tag("platform", "roblox")
 -- Test extra context
 sentry.set_extra("test_type", "integration")
 
--- Test breadcrumbs  
+-- Test breadcrumbs
 sentry.add_breadcrumb({
     message = "Integration test started",
     category = "test",
@@ -545,7 +545,7 @@ if game and game:FindFirstChild("Workspace") then
     workspace.SentrySDK:SetAttribute("Initialized", true)
 end
 
--- Force global persistence 
+-- Force global persistence
 rawset(_G, "sentry", sentry)
 
 -- Debug global variable setup
@@ -573,7 +573,7 @@ print("")
 print("🔹 Try these in order until one works:")
 print("_G.sentry.capture_message('Hello World!', 'info')")
 print("rawget(_G, 'sentry').capture_message('Hello rawget!', 'info')")
-print("shared.sentry.capture_message('Hello shared!', 'info')")  
+print("shared.sentry.capture_message('Hello shared!', 'info')")
 print("getgenv().sentry.capture_message('Hello getgenv!', 'info')")
 print("")
 print("🔹 Exception examples:")
@@ -587,7 +587,7 @@ print("_G.sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
 print("")
 print("✅ Integration ready - uses real SDK " .. version() .. "!")
 
--- Also try alternative global setups for better Roblox compatibility  
+-- Also try alternative global setups for better Roblox compatibility
 if getgenv then
     getgenv().sentry = sentry
     print("📦 Also available via getgenv().sentry")
