@@ -42,7 +42,15 @@ local function install_dependencies()
   run_command("luarocks install busted", "Installing busted test framework")
   run_command("luarocks install lua-cjson", "Installing JSON support")
   run_command("luarocks install luasocket", "Installing socket support")
-  run_command("luarocks install luasec", "Installing SSL/HTTPS support")
+  
+  -- Install luasec with OpenSSL directory if available
+  local openssl_dir = os.getenv("OPENSSL_DIR")
+  if openssl_dir then
+    run_command("luarocks install luasec OPENSSL_DIR=" .. openssl_dir, "Installing SSL/HTTPS support")
+  else
+    run_command("luarocks install luasec", "Installing SSL/HTTPS support")
+  end
+  
   run_command("luarocks install luacov", "Installing coverage tool")
   run_command("luarocks install luacov-reporter-lcov", "Installing LCOV reporter")
 
