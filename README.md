@@ -30,7 +30,7 @@ local sentry = require("sentry")
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
    environment = "production",
-   release = "0.0.6"
+   release = "0.0.7"
 })
 
 -- Capture a message

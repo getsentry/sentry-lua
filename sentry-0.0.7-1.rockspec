@@ -1,9 +1,9 @@
 rockspec_format = "3.0"
 package = "sdk"
-version = "0.0.6-1"
+version = "0.0.7-1"
 source = {
    url = "git+https://github.com/getsentry/sentry-lua.git",
-   tag = "0.0.6"
+   tag = "0.0.7"
 }
 description = {
    summary = "Sentry SDK for Lua",
@@ -15,8 +15,12 @@ description = {
 }
 dependencies = {
    "lua >= 5.1",
-   "luasocket"
+   "luasocket >= 3.0",
+   "luasec >= 1.0",
 }
 build = {
-   type = "command",
+  type = "builtin",
+  modules = {
+    ["sentry"] = "src/sentry/init.lua",
+  }
 }
