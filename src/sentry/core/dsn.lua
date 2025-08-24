@@ -8,7 +8,7 @@ local function parse_dsn(dsn_string)
   -- https://public_key@host:port/path/project_id
   local protocol, credentials, host_path = dsn_string:match("^(https?)://([^@]+)@(.+)$")
 
-  if not protocol or not credentials or not host_path then return {}, "Invalid DSN format" end
+  if not protocol or not credentials or not host_path then return nil, "Invalid DSN format" end
 
   -- Parse credentials (public_key or public_key:secret_key)
   local public_key, secret_key = credentials:match("^([^:]+):(.+)$")
@@ -17,15 +17,15 @@ local function parse_dsn(dsn_string)
     secret_key = ""
   end
 
-  if not public_key or public_key == "" then return {}, "Invalid DSN format" end
+  if not public_key or public_key == "" then return nil, "Invalid DSN format" end
 
   -- Parse host and path
   local host, path = host_path:match("^([^/]+)(.*)$")
-  if not host or not path or path == "" then return {}, "Invalid DSN format" end
+  if not host or not path or path == "" then return nil, "Invalid DSN format" end
 
   -- Extract project ID from path (last numeric segment)
   local project_id = path:match("/([%d]+)$")
-  if not project_id then return {}, "Could not extract project ID from DSN" end
+  if not project_id then return nil, "Could not extract project ID from DSN" end
 
   -- Parse port from host
   local port = 443

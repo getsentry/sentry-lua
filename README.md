@@ -119,3 +119,40 @@ For example, the LÖVE framework example app:
 
 ![Screenshot of this example app](./examples/love2d/example-app.png "LÖVE Example App")
 
+## Development
+
+This project uses a cross-platform Lua development script instead of Make for better Windows compatibility.
+
+### Setup
+
+1. Install Lua and LuaRocks
+2. Install dependencies: `lua scripts/dev.lua install`
+
+### Common Tasks
+
+```bash
+# Run tests
+lua scripts/dev.lua test
+
+# Run linter 
+lua scripts/dev.lua lint
+
+# Format code
+lua scripts/dev.lua format
+
+# Run full CI pipeline locally
+lua scripts/dev.lua ci
+
+# Show all available commands
+lua scripts/dev.lua help
+```
+
+### Code Quality
+
+- **Linting**: luacheck for code quality
+- **Formatting**: StyLua for consistent style  
+- **Testing**: busted for test framework
+- **Coverage**: luacov for coverage reporting
+
+All tools run cross-platform via the `scripts/dev.lua` script.
+

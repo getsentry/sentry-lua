@@ -34,6 +34,27 @@ jobs:
       with:
         version: latest
         args: --check .
+    
+    - name: Format code with StyLua
+      if: failure()
+      uses: JohnnyMorganz/stylua-action@479972f01e665acfcba96ada452c36608bdbbb5e # v4.1.0
+      with:
+        version: latest
+        args: .
+    
+    - name: Commit formatted code
+      if: failure()
+      run: |
+        if [[ $(git status --porcelain) ]]; then
+          echo "Code was formatted. Committing changes."
+          git config --global user.name 'Sentry GitHub Bot'
+          git config --global user.email 'bot+github-bot@sentry.io'
+          git add .
+          git commit -m "Format code with StyLua [skip ci]"
+          git push
+        else
+          echo "No formatting changes needed."
+        fi
 
     - name: Install luacheck
       run: luarocks install luacheck
