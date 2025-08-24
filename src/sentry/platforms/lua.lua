@@ -92,4 +92,11 @@ function M.http_post(url, body, headers, opts)
     return request_with_optional_headers(https, url, "POST", headers, body, opts.timeout_ms)
 end
 
+function M.http_post_async(url, body, headers, opts, callback)
+  local ok, status, resp_body, resp_headers = M.http_post(url, body, headers, opts)
+  if callback then
+    callback(ok, status, resp_body)
+  end
+end
+
 return M

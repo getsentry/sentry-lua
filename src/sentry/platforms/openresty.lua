@@ -18,6 +18,16 @@ function M.http_post(url, body, headers, opts)
   return true, res.status, res.body, res.headers
 end
 
+function M.http_post_async(url, body, headers, opts, callback)
+---@diagnostic disable-next-line: undefined-global
+  ngx.thread.spawn(function()
+    local ok, status, resp_body = M.http_post(url, body, headers, opts)
+    if callback then
+      callback(ok, status, resp_body)
+    end
+  end)
+end
+
 function M.timestamp()
 ---@diagnostic disable-next-line: undefined-global
   local now = ngx.now()   -- seconds + fractional

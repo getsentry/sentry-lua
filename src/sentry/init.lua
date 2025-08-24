@@ -29,7 +29,7 @@ local function capture_message(message)
         logger.debug("Sentry SDK has not been initialized")
         return
     end
-    logger.debug("capture_message")
+    return sentry._client:capture_message(message)
 end
 local function capture_exception(exception)
     if not sentry._client then

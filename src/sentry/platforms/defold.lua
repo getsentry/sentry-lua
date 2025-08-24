@@ -34,6 +34,17 @@ function M.http_post(url, body, headers, opts)
   return true, result.status, result.body, result.headers
 end
 
+function M.http_post_async(url, body, headers, _, callback)
+  headers = headers or {}
+---@diagnostic disable-next-line: undefined-global
+  http.request(url, "POST", function(self, id, response)
+    if callback then
+      local ok = (response.status >= 200 and response.status < 400)
+      callback(ok, response.status, response.response)
+    end
+  end, headers, body or "")
+end
+
 function M.sleep(ms)
   local t0 = os.clock()
   local target = (ms or 0)/1000

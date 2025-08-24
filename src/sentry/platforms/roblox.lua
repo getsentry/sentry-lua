@@ -23,6 +23,26 @@ function M.http_post(url, body, headers, _)
   return res.Success, res.StatusCode, res.Body, res.Headers
 end
 
+function M.http_post_async(url, body, headers, _, callback)
+  task.spawn(function()
+    local ok, res = pcall(function()
+      return HttpService:RequestAsync({
+        Url = url,
+        Method = "POST",
+        Headers = headers or {},
+        Body = body or "",
+      })
+    end)
+    if callback then
+      if not ok then
+        callback(false, tostring(res))
+      else
+        callback(res.Success, res.StatusCode, res.Body)
+      end
+    end
+  end)
+end
+
 function M.sleep(ms)
   task.wait((ms or 0) / 1000)
   return true
