@@ -1,10 +1,8 @@
-require("spec")
-
 describe("DSN Parsing", function()
    local dsn_utils
 
    before_each(function()
-      dsn_utils = require("core.dsn")
+      dsn_utils = require("sentry.core.dsn")
    end)
 
    describe("Valid DSN parsing", function()
@@ -86,6 +84,7 @@ describe("DSN Parsing", function()
       it("should reject nil DSN", function()
          local dsn, error = dsn_utils.parse_dsn(nil)
          
+         -- assert.is_nil(error)
          assert.is_not_nil(error)
          assert.are.equal("DSN is required", error)
       end)
