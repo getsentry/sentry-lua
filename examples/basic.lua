@@ -62,10 +62,10 @@ checkout_handler("user_12345", "sess_abcdef123456")
 local function array_access_error(department, min_users_required)
    local users = {"alice", "bob", "charlie"}
    local debug_info = "Checking " .. department .. " (need " .. min_users_required .. " users)"
-   
+
    -- This will access nil (common mistake from other languages)
    local first_user = users[0]  -- Should be users[1]
-   
+
    -- This will cause an error when trying to use nil
    return string.upper(first_user) .. " in " .. debug_info
 end
@@ -74,7 +74,7 @@ end
 local function string_concat_error(greeting_type, username, user_id)
    local timestamp = os.time()
    local session_id = "sess_" .. math.random(1000, 9999)
-   
+
    -- Wrong: using + instead of .. for concatenation
    local message = greeting_type + " " + username + " (ID: " + user_id + ") at " + timestamp
    return message .. " session: " .. session_id
@@ -84,8 +84,7 @@ end
 local function nil_method_call(service_name, environment)
    local config = nil  -- Simulate missing configuration
    local default_timeout = 30
-   local retry_count = 3
-   
+
    -- This will error: attempt to index a nil value
    local timeout = config.timeout or default_timeout
    return "Service " .. service_name .. " (" .. environment .. ") timeout: " .. timeout
@@ -96,13 +95,13 @@ local function table_iteration_error(record_type, max_items)
    local data = {name = "test_record", value = 42, priority = "high"}
    local result = ""
    local processed_count = 0
-   
+
    -- Wrong: using ipairs on a hash table (should use pairs)
    for i, v in ipairs(data) do
       result = result .. tostring(v)
       processed_count = processed_count + 1
    end
-   
+
    return record_type .. ": processed " .. processed_count .. "/" .. max_items .. " -> " .. result
 end
 
@@ -117,11 +116,11 @@ sentry.add_breadcrumb({
 sentry.with_scope(function(scope)
    scope:set_tag("error_type", "array_indexing")
    scope:set_extra("expected_behavior", "Lua arrays are 1-indexed, not 0-indexed")
-   
+
    local function safe_array_access()
       array_access_error("engineering", 2)
    end
-   
+
    xpcall(safe_array_access, function(err)
       sentry.capture_exception({
          type = "IndexError",
@@ -135,11 +134,11 @@ end)
 sentry.with_scope(function(scope)
    scope:set_tag("error_type", "string_concatenation")
    scope:set_extra("expected_behavior", "Lua uses .. for string concatenation, not +")
-   
+
    local function safe_string_concat()
       string_concat_error("Hello", "john_doe", 42)
    end
-   
+
    xpcall(safe_string_concat, function(err)
       sentry.capture_exception({
          type = "TypeError", 
@@ -153,11 +152,11 @@ end)
 sentry.with_scope(function(scope)
    scope:set_tag("error_type", "nil_access")
    scope:set_extra("expected_behavior", "Always check for nil before accessing table fields")
-   
+
    local function safe_nil_access()
       nil_method_call("database", "production")
    end
-   
+
    xpcall(safe_nil_access, function(err)
       sentry.capture_exception({
          type = "NilAccessError",
@@ -171,7 +170,7 @@ end)
 sentry.with_scope(function(scope)
    scope:set_tag("error_type", "iteration_logic")
    scope:set_extra("expected_behavior", "Use pairs() for hash tables, ipairs() for arrays")
-   
+
    local result = table_iteration_error("user_profile", 10)
    if result:find("processed 0/") then
       sentry.capture_message("Table iteration produced empty result - likely using wrong iterator", "warning")
@@ -219,13 +218,13 @@ sentry.add_breadcrumb({
 print("\n=== Manual Error Handling ===")
 sentry.with_scope(function(scope)
    scope:set_tag("handling_method", "manual")
-   
+
    local function manual_error_demo(operation_type, resource_id)
       local data = nil
       local context = "Processing " .. operation_type .. " for resource " .. resource_id
       return data.missing_field .. " (" .. context .. ")"  -- Will cause nil access error
    end
-   
+
    xpcall(function() manual_error_demo("update", "res_456") end, function(err)
       sentry.capture_exception({
          type = "ManuallyHandledError", 
@@ -243,11 +242,11 @@ print("The following error will be automatically captured by Sentry:")
 sentry.with_scope(function(scope)
    scope:set_tag("handling_method", "automatic")
    scope:set_extra("note", "This error is automatically captured without xpcall")
-   
+
    -- Uncomment the next line to test automatic capture
    -- WARNING: This will terminate the program!
    -- error("This error is automatically captured!")
-   
+
    print("[Automatic] Error capture is enabled - any unhandled error() calls are automatically sent to Sentry")
 end)
 

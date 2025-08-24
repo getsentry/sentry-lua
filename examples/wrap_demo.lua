@@ -25,7 +25,7 @@ local function process_database_config(environment, service_name, retry_count)
    local config = nil  -- Simulate missing configuration
    local timeout_ms = 5000
    local connection_pool_size = 10
-   
+
    -- This will cause an error that gets automatically captured
    local db_url = config.database_url  -- Error: attempt to index nil
    return db_url .. "?timeout=" .. timeout_ms .. "&pool=" .. connection_pool_size
@@ -34,7 +34,7 @@ end
 local function validate_user_permissions(user_id, action_type, resource_id)
    local permissions = {"read", "write", "admin"}
    local session_data = {expires_at = os.time() + 3600, csrf_token = "abc123"}
-   
+
    -- Process permissions validation
    return process_database_config("production", "user_service", 3)
 end
@@ -42,24 +42,24 @@ end
 local function main(app_version, startup_mode)
    print("=== Sentry.wrap() Demo === (v" .. app_version .. ", mode: " .. startup_mode .. ")")
    local instance_id = "inst_" .. math.random(1000, 9999)
-   
+
    -- Add some context
    sentry.add_breadcrumb({
       message = "Application started",
       category = "lifecycle",
       level = "info"
    })
-   
+
    print("1. Setting up user data...")
    local users = {"alice", "bob", "charlie"}
-   
+
    print("2. Processing payments...")
    sentry.add_breadcrumb({
       message = "Starting payment processing",
       category = "business",
       level = "info"
    })
-   
+
    -- Simulate some successful operations
    for i, user in ipairs(users) do
       local amount = 100 * i
@@ -71,11 +71,11 @@ local function main(app_version, startup_mode)
          data = { user = user, amount = amount }
       })
    end
-   
+
    print("3. Validating user permissions...")
    -- This will ultimately cause an error through the call chain
    local result = validate_user_permissions("user_12345", "database_write", "config_table")
-   
+
    print("This line should never be reached:", result)
 end
 
@@ -96,9 +96,9 @@ print("\n=== Method 2: Custom Error Handler ===")
 local function attempt_risky_operation(operation_id, max_retries, timeout_seconds)
    local cache_key = "op_" .. operation_id
    local start_time = os.time()
-   
+
    print("Attempting risky operation (ID: " .. operation_id .. ", retries: " .. max_retries .. ")...")
-   
+
    local risky_data = nil
    return risky_data.missing_field .. " cached as " .. cache_key  -- This will error
 end
@@ -110,7 +110,7 @@ end
 local function custom_error_handler(err)
    local error_id = "err_" .. math.random(10000, 99999)
    local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-   
+
    print("Custom handler: Caught error [" .. error_id .. " at " .. timestamp .. "]:", err)
    print("Custom handler: Performing cleanup...")
    -- You could do cleanup, logging, etc. here
@@ -133,7 +133,7 @@ print("\n=== Comparison with Manual Approach ===")
 local function manual_error_simulation(task_name, priority_level)
    local task_id = "task_" .. math.random(100, 999)
    local worker_id = "worker_A1"
-   
+
    error("Manual error handling for " .. task_name .. " (priority: " .. priority_level .. ", task: " .. task_id .. ")")
 end
 

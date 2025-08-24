@@ -33,7 +33,7 @@ function Scope:add_breadcrumb(breadcrumb)
       data = breadcrumb.data -- or {}
    }
    table.insert(self.breadcrumbs, crumb)
-   
+
    while #self.breadcrumbs > self.max_breadcrumbs do
       table.remove(self.breadcrumbs, 1)
    end

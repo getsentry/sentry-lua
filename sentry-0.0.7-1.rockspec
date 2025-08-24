@@ -18,6 +18,9 @@ dependencies = {
    "luasocket >= 3.0",
    "luasec >= 1.0",
 }
+test_dependencies = {
+   "luacheck >= 0.23.0",
+}
 build = {
   type = "builtin",
   modules = {
