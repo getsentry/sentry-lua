@@ -50,9 +50,15 @@ local function with_scope(callback)
         logger.debug("Sentry SDK has not been initialized. Executing callback for program continuity but no error handling will be active")
         return
     end
-    local scope = sentry._scope:clone()
-    callback(scope)
+
     logger.debug("with_scope")
+    local new_scope = sentry._scope:clone()
+
+    local success, result = pcall(callback, new_scope)
+
+    if not success then
+        logger.error("callback failed to run through with_scope: " .. result)
+    end
 end
 local function set_tag(key, value)
     if not sentry._client then

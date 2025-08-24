@@ -10,7 +10,7 @@ Scope.breadcrumbs = {}
 function Scope:new()
     print("scope:new")
     local scope = setmetatable({
-        --
+        max_breadcrumbs = 100
     }, {__index = self})
     return scope
 end
@@ -20,6 +20,7 @@ function Scope:clone()
     for k, v in pairs(self.user) do
         new_scope.user[k] = v
     end
+    return new_scope
 end
 
 function Scope:add_breadcrumb(breadcrumb)

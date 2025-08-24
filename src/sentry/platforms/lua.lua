@@ -1,5 +1,31 @@
 -- NOTE: This module depends on the standard Lua environment. It should only be loaded after verifying it is indeed on standard Lua
 
+local function ensure_https()
+  local ok, https = pcall(require, "ssl.https")
+  if ok then return https end
+
+  -- Hacks to get the debugger to work on a mac
+  local lr_path  = "~/.luarocks/share/lua/5.4/?.lua;~/.luarocks/share/lua/5.4/?/init.lua;/opt/homebrew/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?/init.lua"
+  local lr_cpath = "~/.luarocks/lib/lua/5.4/?.so;/opt/homebrew/lib/lua/5.4/?.so"
+
+  if not package.path:find("/.luarocks/share/lua/5.4", 1, true) then
+    package.path = package.path .. ";" .. lr_path
+  end
+  if not package.cpath:find("/.luarocks/lib/lua/5.4", 1, true) then
+    package.cpath = package.cpath .. ";" .. lr_cpath
+  end
+
+  local ok2, https2 = pcall(require, "ssl.https")
+  if ok2 then return https2 end
+
+  -- Last resort: print why (helps when the debugger’s runtime/ABI mismatches)
+  local msg = ("Cannot load ssl.https.\npackage.path=%s\npackage.cpath=%s"):format(package.path, package.cpath)
+  io.stderr:write(msg.."\n")
+  return nil
+end
+
+ensure_https()
+
 local function tz_suffix(t)
   local z = os.date("%z", t or os.time()) or "+0000"
   assert(type(z) == "string")
