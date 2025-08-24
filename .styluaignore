@@ -1,0 +1,9 @@
+# Ignore generated or third-party files
+.luarocks/
+.git/
+
+# Ignore any vendor or external dependencies
+vendor/
+
+# Ignore specific files if needed (uncomment as needed)
+# examples/some-example.lua
