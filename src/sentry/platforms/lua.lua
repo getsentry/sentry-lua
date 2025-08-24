@@ -37,15 +37,23 @@ local https = safe_require("ssl.https")
 if not https then error("https not available (install LuaSec: ssl.https)") end
 
 local ltn12 = safe_require("ltn12")
+local socket = safe_require("socket")
 
 local M = { name = "lua" }
 
 function M.timestamp()
   local now, sec, ms
-  if socket_ok and type(socket.gettime) == "function" then
-    now = socket.gettime(); sec = now // 1; ms = math.floor((now - sec)*1000 + 0.5)
-    if ms == 1000 then ms = 0; sec = sec + 1 end
+  -- Try socket.gettime() for millisecond precision
+  if socket and type(socket.gettime) == "function" then
+    now = socket.gettime()
+    sec = math.floor(now)
+    ms = math.floor((now - sec) * 1000 + 0.5)
+    if ms >= 1000 then
+      ms = 0
+      sec = sec + 1
+    end
   else
+    -- Fallback to os.time() without millisecond precision
     sec, ms = os.time(), 0
   end
   local d = os.date("*t", sec)
