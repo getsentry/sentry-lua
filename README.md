@@ -12,7 +12,6 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 ### LuaRocks (macOS/Linux)
 ```bash
-# Install from LuaRocks.org - requires Unix-like system for Teal compilation
 luarocks install sentry/sdk
 ```
 **Note:** Use `sentry/sdk` (not just `sentry`) as the plain `sentry` package is not a Sentry SDK.

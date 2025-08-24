@@ -1,7 +1,5 @@
--- NOTE: Before running this example, compile the Teal files into Lua
-
-package.path = "build/?.lua;build/?/init.lua;" .. package.path
-local sentry = require("sentry.init")
+package.path = "src/?/init.lua;" .. package.path
+local sentry = require("sentry")
 
 -- Initialize Sentry with your DSN
 sentry.init({
@@ -9,9 +7,6 @@ sentry.init({
    environment = "production",
    release = "wrap-demo@1.0",
    debug = true,
-   -- file_transport = true,
-   -- file_path = "sentry-events.log",
-   -- append_mode = true
 })
 
 -- Set user context
@@ -264,4 +259,4 @@ sentry.with_scope(function(scope)
 end)
 
 -- Clean up
-sentry.close()
+sentry:close()

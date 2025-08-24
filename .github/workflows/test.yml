@@ -181,7 +181,7 @@ jobs:
         cp README.md dist-temp/ || { echo "❌ README.md not found"; exit 1; }
         
         # Copy directories (recursively)
-        cp -r build dist-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
+        cp -r src dist-temp/ || { echo "❌ src directory not found; exit 1; }
         cp -r spec dist-temp/ || { echo "❌ spec directory not found"; exit 1; }
         cp -r examples dist-temp/ || { echo "❌ examples directory not found"; exit 1; }
         
