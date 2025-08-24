@@ -1,5 +1,5 @@
 rockspec_format = "3.0"
-package = "sdk"
+package = "sentry"
 version = "0.0.7-1"
 source = {
    url = "git+https://github.com/getsentry/sentry-lua.git",

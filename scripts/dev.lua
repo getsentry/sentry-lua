@@ -59,7 +59,7 @@ local function run_tests()
   end
 
   -- Run busted tests
-    run_command("busted", "Running test suite")
+  run_command("busted", "Running test suite")
 end
 
 local function run_coverage()
@@ -70,17 +70,9 @@ local function run_coverage()
 
   -- Generate coverage reports
   if file_exists("luacov.stats.out") then
-    run_command("luacov", "Generating standard coverage report")
-    if file_exists("luacov.report.out") then print("✅ Coverage report generated: luacov.report.out") end
-
-    -- Try to generate LCOV report if reporter is available
-    local lcov_test = os.execute("luacov-reporter-lcov --help 2>/dev/null")
-    if lcov_test == 0 or lcov_test == true then
-      run_command("luacov-reporter-lcov", "Generating LCOV coverage report")
-      if file_exists("coverage.info") then print("✅ LCOV coverage report generated: coverage.info") end
-    else
-      print("ℹ️  LCOV reporter not available (install with: luarocks install luacov-reporter-lcov)")
-      print("📄 Standard coverage report available in luacov.report.out")
+    run_command("luacov", "Generating coverage report")
+    if file_exists("luacov.report.out") then 
+      print("✅ Coverage report generated: luacov.report.out") 
     end
   else
     print("⚠️  No coverage stats found. Make sure busted --coverage ran successfully.")

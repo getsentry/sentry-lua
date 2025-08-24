@@ -183,16 +183,15 @@ jobs:
       with:
         name: coverage-${{ matrix.os }}-lua${{ matrix.lua-version }}
         path: |
-          coverage.info
           luacov.report.out
-          test-results.xml
+          luacov.stats.out
         retention-days: 7
     
     - name: Upload coverage to Codecov (Ubuntu Lua 5.4 only)
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
       with:
-        file: ./coverage.info
+        file: ./luacov.report.out
         flags: unittests
         name: codecov-${{ matrix.lua-version }}
         fail_ci_if_error: false
