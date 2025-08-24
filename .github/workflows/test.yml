@@ -16,6 +16,25 @@ env:
   LUAJIT_2_1_VERSION: "v2.1.0-beta3"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+    
+    - name: Setup Lua
+      uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
+      with:
+        luaVersion: "5.4"
+    
+    - name: Setup LuaRocks
+      uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+    
+    - name: Install luacheck
+      run: luarocks install luacheck
+    
+    - name: Run luacheck
+      run: luacheck .
+
   test:
     strategy:
       fail-fast: false
