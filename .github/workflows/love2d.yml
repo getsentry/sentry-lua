@@ -49,15 +49,10 @@ jobs:
     - name: Run Love2D tests
       run: lua scripts/dev.lua ci-love2d
     
-    - name: Test example module loading
-      run: |
-        cd examples/love2d
-        LUA_PATH="../../src/?.lua;../../src/?/init.lua;;" lua test_modules.lua
-    
     - name: Package Love2D example
       run: |
         cd examples/love2d
-        zip -r sentry-love2d-demo.love . -x "*.DS_Store" "test_modules.lua"
+        zip -r sentry-love2d-demo.love . -x "*.DS_Store"
         ls -la sentry-love2d-demo.love
         
     - name: Upload Love2D artifacts

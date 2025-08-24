@@ -176,8 +176,28 @@ local function test_rockspec()
     os.exit(1)
   end
 
-  -- Test installation
-  run_command("luarocks make " .. rockspec, "Testing rockspec installation")
+  -- Try local installation first (safer for CI environments), fallback to system
+  local success = false
+  local luarocks_cmd = "luarocks make --local " .. rockspec
+  local result = os.execute(luarocks_cmd)
+  
+  if result == 0 or result == true then
+    print("✅ Rockspec test passed (local installation)")
+    success = true
+  else
+    -- Fallback to system installation
+    luarocks_cmd = "luarocks make " .. rockspec
+    result = os.execute(luarocks_cmd)
+    if result == 0 or result == true then
+      print("✅ Rockspec test passed (system installation)")
+      success = true
+    end
+  end
+  
+  if not success then
+    print("❌ Rockspec test failed")
+    os.exit(1)
+  end
 end
 
 local function clean()
