@@ -42,7 +42,7 @@ local function debug(err)
 end
 
 local function get()
-    if not M then 
+    if not M then
         local ok, val = xpcall(detect, debug)
         if not ok then error("failed to load Sentry") end
         M = val

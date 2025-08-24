@@ -65,6 +65,8 @@ local function request_with_optional_headers(lib, url, method, headers, body, ti
 
   if ltn12 then
     local chunks = {}
+    -- luacheck: no unused secondaries
+    ---@diagnostic disable-next-line: unused-local
     local ok, code, resp_headers, status = lib.request{
       url = url,
       method = method,
@@ -72,13 +74,8 @@ local function request_with_optional_headers(lib, url, method, headers, body, ti
       source = ltn12.source.string(body),
       sink   = ltn12.sink.table(chunks),
     }
-    if not ok then return nil, tostring(code or "request failed") end
+    if not ok then return nil, tostring(code or "request failed: ") end
     return true, tonumber(code), table.concat(chunks), resp_headers
-  end
-
-  -- No ltn12: reject custom headers; allow body via 2-arg form
-  for _ in pairs(headers) do
-    return nil, "custom headers require ltn12 (install ltn12)"
   end
 
   local resp_body, code, resp_headers = lib.request(url, body)
@@ -88,11 +85,12 @@ end
 
 function M.http_post(url, body, headers, opts)
   opts = opts or {}
-  local scheme = url:match("^([%a][%w+.-]*)://") or error("Only https connection is supported.")
     return request_with_optional_headers(https, url, "POST", headers, body, opts.timeout_ms)
 end
 
 function M.http_post_async(url, body, headers, opts, callback)
+  -- luacheck: no unused secondaries
+  ---@diagnostic disable-next-line: unused-local
   local ok, status, resp_body, resp_headers = M.http_post(url, body, headers, opts)
   if callback then
     callback(ok, status, resp_body)

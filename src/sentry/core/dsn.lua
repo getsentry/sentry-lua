@@ -63,9 +63,9 @@ local function parse_dsn(dsn_string)
 end
 
 local function build_envelope_url(dsn)
-   return string.format("%s://%s/api/%s/envelope/", 
-      dsn.protocol, 
-      dsn.host, 
+   return string.format("%s://%s/api/%s/envelope/",
+      dsn.protocol,
+      dsn.host,
       dsn.project_id)
 end
 

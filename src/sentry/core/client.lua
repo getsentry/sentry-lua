@@ -4,7 +4,7 @@ local Client = {}
 Client.__index = Client
 
 function Client:new(options)
-    if not options then 
+    if not options then
         diagnostic_logger.warn("Cannot create a Sentry client without options.")
         return nil
     end

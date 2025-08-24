@@ -98,6 +98,8 @@ function M.http_post(url, body, headers, opts)
 end
 
 function M.http_post_async(url, body, headers, opts, callback)
+  -- luacheck: no unused secondaries
+  ---@diagnostic disable-next-line: unused-local
   local ok, status, resp_body, resp_headers = M.http_post(url, body, headers, opts)
   if callback then
     callback(ok, status, resp_body)
