@@ -4,6 +4,7 @@
 exclude_files = {
    ".luarocks/",
    ".git/",
+   "examples/love2d/sentry/" -- symlink to 'src'
 }
 
 files["spec/"] = {
