@@ -39,6 +39,10 @@ files["src/sentry/platforms/init.lua"] = { globals = platform_bootstrapper }
 ignore = {
    "212", -- unused argument (common in callbacks)
    "213", -- unused loop variable (common in iterations)
+   "611", -- A line consists of nothing but whitespace.
+   "612", -- A line contains trailing whitespace.
+   "613", -- Trailing whitespace in a string.
+   "614", -- Trailing whitespace in a comment.
 }
 
 max_line_length = 200

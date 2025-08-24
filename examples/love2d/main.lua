@@ -2,10 +2,9 @@
 -- A simple app with Sentry logo and error button to demonstrate Sentry SDK
 
 -- Sentry SDK available in local sentry/ directory
--- In production, copy build/sentry/ into your Love2D project
+-- In production, copy src/sentry/ into your Love2D project
 
 local sentry = require("sentry")
-local logger = require("sentry.logger")
 
 -- Game state
 local game = {
@@ -67,14 +66,6 @@ function love.load()
     print("[Debug] No transport found!")
   end
 
-  -- Initialize logger
-  logger.init({
-    enable_logs = true,
-    max_buffer_size = 5,
-    flush_timeout = 2.0,
-    hook_print = true,
-  })
-
   -- Set user context
   sentry.set_user({
     id = "love2d_user_" .. math.random(1000, 9999),
@@ -114,17 +105,17 @@ function love.load()
   -- Initialize demo functions for multi-frame stack traces
   game.demo_functions = {
     level1 = function(user_action, error_type)
-      logger.info("Level 1: Processing user action %s", { user_action })
+      print("Level 1: Processing user action %s", { user_action })
       return game.demo_functions.level2(error_type, "processing")
     end,
 
     level2 = function(action_type, status)
-      logger.debug("Level 2: Executing %s with status %s", { action_type, status })
+      print("Level 2: Executing %s with status %s", { action_type, status })
       return game.demo_functions.level3(action_type)
     end,
 
     level3 = function(error_category)
-      logger.warn("Level 3: About to trigger %s error", { error_category })
+      warn("Level 3: About to trigger %s error", { error_category })
       return game.demo_functions.trigger_error(error_category)
     end,
 
@@ -134,22 +125,19 @@ function love.load()
 
       -- Create realistic error scenarios
       if category == "button_click" then
-        logger.error("Critical error in button handler")
         error("Love2DButtonError: Button click handler failed with code " .. math.random(1000, 9999))
       elseif category == "rendering" then
-        logger.error("Graphics rendering failure")
         error("Love2DRenderError: Failed to render game object at frame " .. love.timer.getTime())
       else
-        logger.error("Generic game error occurred")
         error("Love2DGameError: Unexpected game state error in category " .. tostring(category))
       end
     end,
   }
 
   -- Log successful initialization
-  logger.info("Love2D Sentry demo initialized successfully")
-  logger.info("Love2D version: %s", { table.concat({ love.getVersion() }, ".") })
-  logger.info("Operating system: %s", { love.system.getOS() })
+  print("Love2D Sentry demo initialized successfully")
+  print("Love2D version: %s", { table.concat({ love.getVersion() }, ".") })
+  print("Operating system: %s", { love.system.getOS() })
 
   -- Add breadcrumb for debugging context
   sentry.add_breadcrumb({
@@ -170,16 +158,10 @@ function love.update(dt)
 
   -- Log hover state changes
   if button.hover and not was_hover then
-    logger.debug("Button hover state: entered")
+    print("Button hover state: entered")
   elseif not button.hover and was_hover then
-    logger.debug("Button hover state: exited")
+    print("Button hover state: exited")
   end
-
-  -- Flush Sentry transport periodically
-  sentry.flush()
-
-  -- Flush logger periodically
-  if math.floor(love.timer.getTime()) % 3 == 0 then logger.flush() end
 end
 
 function love.draw()
@@ -280,19 +262,17 @@ function love.mousepressed(x, y, button_num, istouch, presses)
       })
 
       -- Log the button click
-      logger.info("Error button clicked at position (%s, %s)", { x, y })
-      logger.info("Preparing to trigger multi-frame error...")
+      print("Error button clicked at position (%s, %s)", { x, y })
+      print("Preparing to trigger multi-frame error...")
 
       -- Use xpcall to capture the error with original stack trace
       local function error_handler(err)
-        logger.error("Button click error occurred: %s", { tostring(err) })
-
         sentry.capture_exception({
           type = "Love2DUserTriggeredError",
           message = tostring(err),
         })
 
-        logger.info("Error captured and sent to Sentry")
+        print("Error captured and sent to Sentry")
         return err
       end
 
@@ -316,8 +296,8 @@ function love.mousepressed(x, y, button_num, istouch, presses)
       })
 
       -- Log the fatal button click
-      logger.info("Fatal error button clicked at position (%s, %s)", { x, y })
-      logger.info("This will trigger love.errorhandler and crash the app...")
+      print("Fatal error button clicked at position (%s, %s)", { x, y })
+      print("This will trigger love.errorhandler and crash the app...")
 
       -- Trigger a fatal error that will go through love.errorhandler
       -- This error is NOT caught with xpcall, so it will bubble up to love.errorhandler
@@ -336,15 +316,13 @@ end
 function love.keypressed(key)
   if key == "escape" then
     -- Clean shutdown with Sentry flush
-    logger.info("Application shutting down")
-    logger.flush()
-
+    print("Application shutting down")
     sentry.close()
 
     love.event.quit()
   elseif key == "r" then
     -- Trigger rendering error
-    logger.info("Rendering error triggered via keyboard")
+    print("Rendering error triggered via keyboard")
 
     sentry.add_breadcrumb({
       message = "Rendering error triggered",
@@ -363,7 +341,7 @@ function love.keypressed(key)
     xpcall(function() game.demo_functions.level1("render_test", "rendering") end, error_handler)
   elseif key == "f" then
     -- Trigger fatal error via keyboard
-    logger.info("Fatal error triggered via keyboard - will crash app")
+    print("Fatal error triggered via keyboard - will crash app")
 
     sentry.add_breadcrumb({
       message = "Fatal error triggered via keyboard (F key)",
@@ -381,8 +359,8 @@ end
 
 function love.quit()
   -- Clean shutdown
-  logger.info("Love2D application quit")
-  logger.flush()
+  sentry.info("Love2D application quit")
+  sentry.flush()
 
   sentry.close()
 

@@ -150,6 +150,11 @@ local function run_format()
   run_command("stylua .", "Formatting Lua code")
 end
 
+local function test_love2d()
+  print("TODO")
+  
+end
+
 local function test_rockspec()
   print("📋 Testing rockspec installation...")
 
@@ -190,6 +195,7 @@ local function show_help()
   print("  format-check Check code formatting")
   print("  format       Format code with StyLua")
   print("  test-rockspec Test rockspec installation")
+  print("  ci-love2d    Run Love2D integration tests")
   print("  clean        Clean artifacts")
   print("  ci           Run full CI pipeline (lint, format-check, test, coverage)")
   print("  help         Show this help")
@@ -197,6 +203,7 @@ local function show_help()
   print("Examples:")
   print("  lua scripts/dev.lua install")
   print("  lua scripts/dev.lua test")
+  print("  lua scripts/dev.lua ci-love2d")
   print("  lua scripts/dev.lua ci")
 end
 
@@ -226,6 +233,8 @@ elseif command == "format" then
   run_format()
 elseif command == "test-rockspec" then
   test_rockspec()
+elseif command == "ci-love2d" then
+  test_love2d()
 elseif command == "clean" then
   clean()
 elseif command == "ci" then

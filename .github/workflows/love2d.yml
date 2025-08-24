@@ -44,15 +44,15 @@ jobs:
         echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
     
     - name: Install dependencies
-      run: make install
+      run: lua scripts/dev.lua install
     
-    - name: Install Love2D and run tests
-      run: make ci-love2d
+    - name: Run Love2D tests
+      run: lua scripts/dev.lua ci-love2d
     
     - name: Test example module loading
       run: |
         cd examples/love2d
-        LUA_PATH="../../build/?.lua;../../build/?/init.lua;;" lua test_modules.lua
+        LUA_PATH="../../src/?.lua;../../src/?/init.lua;;" lua test_modules.lua
     
     - name: Package Love2D example
       run: |

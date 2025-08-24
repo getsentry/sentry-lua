@@ -1,7 +1,7 @@
 -- Demonstration of sentry.wrap() for automatic error capture
 -- This shows the recommended way to automatically capture unhandled errors
 
-package.path = "build/?.lua;build/?/init.lua;" .. package.path
+package.path = "src/?.lua;src/?/init.lua;" .. package.path
 local sentry = require("sentry.init")
 
 -- Initialize Sentry
