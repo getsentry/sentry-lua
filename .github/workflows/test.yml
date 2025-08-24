@@ -29,18 +29,15 @@ jobs:
     - name: Setup LuaRocks
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
     
-    - name: Install StyLua
-      uses: JohnnyMorganz/stylua-action@479972f01e665acfcba96ada452c36608bdbbb5e # v4.1.0
-      with:
-        version: latest
-        args: --check .
+    - name: Install dependencies
+      run: lua scripts/dev.lua install
+    
+    - name: Check formatting
+      run: lua scripts/dev.lua format-check
     
     - name: Format code with StyLua
       if: failure()
-      uses: JohnnyMorganz/stylua-action@479972f01e665acfcba96ada452c36608bdbbb5e # v4.1.0
-      with:
-        version: latest
-        args: .
+      run: lua scripts/dev.lua format
     
     - name: Commit formatted code
       if: failure()
@@ -56,11 +53,8 @@ jobs:
           echo "No formatting changes needed."
         fi
 
-    - name: Install luacheck
-      run: luarocks install luacheck
-    
-    - name: Run luacheck
-      run: luacheck .
+    - name: Run linter
+      run: lua scripts/dev.lua lint
 
   test:
     strategy:
@@ -149,9 +143,9 @@ jobs:
     - name: Install dependencies
       shell: bash
       run: |
-        # For Ubuntu LuaJIT, use --local flag to avoid permission issues
+        # For Ubuntu LuaJIT, we need to handle luasec SSL configuration
         if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
-          echo "Installing dependencies locally for Ubuntu LuaJIT..."
+          # Install dependencies individually to handle SSL configuration
           luarocks install --local busted
           luarocks install --local lua-cjson
           luarocks install --local luasocket
@@ -163,17 +157,15 @@ jobs:
           fi
           luarocks install --local luacov
           luarocks install --local luacov-reporter-lcov
+          luarocks install --local luacheck
           # Add local luarocks bin to PATH
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
         else
-          make install
+          lua scripts/dev.lua install
         fi
     
-    - name: Build project
-      run: make build
-    
     - name: Run tests with coverage
-      run: make coverage-report
+      run: lua scripts/dev.lua coverage
     
     - name: Validate rockspec installation
       shell: bash
@@ -181,9 +173,9 @@ jobs:
         # For Ubuntu LuaJIT, update the rockspec test to use local luarocks path  
         if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
           eval "$(luarocks path --local)"
-          make test-rockspec
+          lua scripts/dev.lua test-rockspec
         else
-          make test-rockspec
+          lua scripts/dev.lua test-rockspec
         fi
     
     - name: Upload coverage artifacts
