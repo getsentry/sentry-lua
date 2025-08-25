@@ -48,7 +48,7 @@
 
 Sentry Hackweek 2025 - **Experimental** SDK
 
-* Portable Lua SDK, written in Teal, Lua 5.1 compatible.
+* Portable Lua SDK, Lua 5.1 compatible.
 * CI and tests on Standard Lua and LuaJIT on macOS and Linux
 * Sentry Features include:
   * Error reporting with source context and local variable values

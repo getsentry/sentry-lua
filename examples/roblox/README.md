@@ -6,7 +6,7 @@ Example Sentry integration for Roblox games.
 
 **Use the all-in-one file:**
 
-1. **Copy** `sentry-all-in-one.lua` 
+1. **Copy** `sentry-all-in-one.luau` 
 2. **Paste** into ServerScriptService as a Script
 3. **Update DSN** on line 18
 4. **Enable HTTP**: Game Settings → Security → "Allow HTTP Requests"  
@@ -14,9 +14,7 @@ Example Sentry integration for Roblox games.
 
 ## 📁 Available Files
 
-- **`sentry-all-in-one.lua`** ⭐ **Complete single-file solution**
-- **`sentry-roblox-sdk.lua`** - Reusable SDK module  
-- **`clean-example.lua`** - Example using the SDK module
+- **`sentry-all-in-one.luau`** ⭐ **Complete single-file solution**
 
 ## 🧪 Testing
 
@@ -85,20 +83,8 @@ sentry.add_breadcrumb({
 **"attempt to index nil with 'capture_message'"**  
 → Make sure sentry.init() was called successfully first
 
-## 🔨 Validation
-
-To validate the Roblox integration is ready:
-
-```bash
-make roblox-all-in-one
-# or directly:
-./scripts/generate-roblox-all-in-one.sh
-```
-
-This checks that the `sentry-all-in-one.lua` file contains all required components and uses the standard SDK API.
-
 ## 🎉 Ready to Go!
 
-Use `sentry-all-in-one.lua` to get started immediately. Copy, paste, update DSN, and test!
+Use `sentry-all-in-one.luau` to get started immediately. Copy, paste, update DSN, and test!
 
 **Happy debugging with Sentry! 🐛→✅**

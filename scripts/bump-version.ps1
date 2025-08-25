@@ -30,9 +30,6 @@ function Replace-TextInFile {
 
 $repoRoot = "$PSScriptRoot/.."
 
-# Update tealdoc.yml
-Replace-TextInFile "$repoRoot/tealdoc.yml" '(?<=project_version: ").*?(?=")' $newVersion
-
 # Update roblox.json
 Replace-TextInFile "$repoRoot/roblox.json" '(?<="version": ").*?(?=")' $newVersion
 
@@ -63,10 +60,9 @@ if ($rockspec) {
 }
 
 # Update centralized version file
-Replace-TextInFile "$repoRoot/src/sentry/version.tl" '(?<=VERSION = ").*?(?=")' $newVersion
+Replace-TextInFile "$repoRoot/src/sentry/version.lua" '(?<=VERSION = ").*?(?=")' $newVersion
 
 # Update test spec files
 Replace-TextInFile "$repoRoot/spec/sentry_spec.lua" '(?<=sentry\.set_tag\("version", ").*?(?=")' $newVersion
 
 Write-Host "Version bump completed successfully to $newVersion"
-Write-Host "Please run 'make build' to rebuild the Lua files from Teal sources"

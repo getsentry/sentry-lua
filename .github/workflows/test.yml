@@ -16,6 +16,46 @@ env:
   LUAJIT_2_1_VERSION: "v2.1.0-beta3"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+    
+    - name: Setup Lua
+      uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
+      with:
+        luaVersion: "5.4"
+    
+    - name: Setup LuaRocks
+      uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+    
+    - name: Install dependencies
+      run: lua scripts/dev.lua install
+    
+    - name: Check formatting
+      run: lua scripts/dev.lua format-check
+    
+    - name: Format code with StyLua
+      if: failure()
+      run: lua scripts/dev.lua format
+    
+    - name: Commit formatted code
+      if: failure()
+      run: |
+        if [[ $(git status --porcelain) ]]; then
+          echo "Code was formatted. Committing changes."
+          git config --global user.name 'Sentry GitHub Bot'
+          git config --global user.email 'bot+github-bot@sentry.io'
+          git add .
+          git commit -m "Format code with StyLua [skip ci]"
+          git push
+        else
+          echo "No formatting changes needed."
+        fi
+
+    - name: Run linter
+      run: lua scripts/dev.lua lint
+
   test:
     strategy:
       fail-fast: false
@@ -103,11 +143,10 @@ jobs:
     - name: Install dependencies
       shell: bash
       run: |
-        # For Ubuntu LuaJIT, use --local flag to avoid permission issues
+        # For Ubuntu LuaJIT, we need to handle luasec SSL configuration
         if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
-          echo "Installing dependencies locally for Ubuntu LuaJIT..."
+          # Install dependencies individually to handle SSL configuration
           luarocks install --local busted
-          luarocks install --local tl
           luarocks install --local lua-cjson
           luarocks install --local luasocket
           if [ -n "$OPENSSL_DIR" ]; then
@@ -118,17 +157,15 @@ jobs:
           fi
           luarocks install --local luacov
           luarocks install --local luacov-reporter-lcov
+          luarocks install --local luacheck
           # Add local luarocks bin to PATH
           echo "$HOME/.luarocks/bin" >> $GITHUB_PATH
         else
-          make install
+          lua scripts/dev.lua install
         fi
     
-    - name: Build project
-      run: make build
-    
     - name: Run tests with coverage
-      run: make coverage-report
+      run: lua scripts/dev.lua coverage
     
     - name: Validate rockspec installation
       shell: bash
@@ -136,9 +173,9 @@ jobs:
         # For Ubuntu LuaJIT, update the rockspec test to use local luarocks path  
         if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [[ "${{ matrix.lua-version }}" == *"luajit"* ]]; then
           eval "$(luarocks path --local)"
-          make test-rockspec
+          lua scripts/dev.lua test-rockspec
         else
-          make test-rockspec
+          lua scripts/dev.lua test-rockspec
         fi
     
     - name: Upload coverage artifacts
@@ -146,16 +183,15 @@ jobs:
       with:
         name: coverage-${{ matrix.os }}-lua${{ matrix.lua-version }}
         path: |
-          coverage.info
           luacov.report.out
-          test-results.xml
+          luacov.stats.out
         retention-days: 7
     
     - name: Upload coverage to Codecov (Ubuntu Lua 5.4 only)
       if: matrix.os == 'ubuntu-latest' && matrix.lua-version == '5.4'
       uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
       with:
-        file: ./coverage.info
+        file: ./luacov.report.out
         flags: unittests
         name: codecov-${{ matrix.lua-version }}
         fail_ci_if_error: false
@@ -182,7 +218,7 @@ jobs:
         cp README.md dist-temp/ || { echo "❌ README.md not found"; exit 1; }
         
         # Copy directories (recursively)
-        cp -r build dist-temp/ || { echo "❌ build directory not found. Run 'make build' first."; exit 1; }
+        cp -r src dist-temp/ || { echo "❌ src directory not found"; exit 1; }
         cp -r spec dist-temp/ || { echo "❌ spec directory not found"; exit 1; }
         cp -r examples dist-temp/ || { echo "❌ examples directory not found"; exit 1; }
         

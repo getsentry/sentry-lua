@@ -1,0 +1,6 @@
+# Ignore generated or third-party files
+.luarocks/
+.git/
+
+# symlink to 'src'
+examples/love2d/sentry/

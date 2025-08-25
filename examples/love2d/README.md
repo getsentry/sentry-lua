@@ -88,10 +88,8 @@ The demo sends data to the Sentry playground project. In production, you would:
 
 When integrating Sentry into your Love2D game:
 
-1. **Add SDK to Project**: Copy `build/sentry/` into your Love2D project
+1. **Add SDK to Project**: Copy `src/sentry/` into your Love2D project
 2. **Initialize Early**: Call `sentry.init()` in `love.load()` 
-3. **Flush Regularly**: Call `transport:flush()` in `love.update()`
-4. **Clean Shutdown**: Call `transport:close()` in `love.quit()`
 5. **Add Context**: Use breadcrumbs and tags for better debugging
 
 ### Clean API Usage
