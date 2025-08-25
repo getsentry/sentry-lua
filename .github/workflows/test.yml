@@ -60,8 +60,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit-2.0", "luajit-2.1"]
+        exclude:
+          # Exclude LuaJIT on Windows due to setup complexity
+          - os: windows-latest
+            lua-version: "luajit-2.0"
+          - os: windows-latest
+            lua-version: "luajit-2.1"
         include:
           - lua-version: "luajit-2.0" 
             luajit-version: "v2.0.5"
@@ -75,11 +81,25 @@ jobs:
     steps:
     - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
     
-    - name: Setup Lua (standard versions)
-      if: ${{ !contains(matrix.lua-version, 'luajit') }}
+    - name: Setup Lua (standard versions) - Non-Windows
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
       uses: leafo/gh-actions-lua@35bcb06abec04ec87df82e08caa84d545348536e # v10
       with:
         luaVersion: ${{ matrix.lua-version }}
+    
+    - name: Cache Lua build (Windows)
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest' }}
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+      id: cache-lua-windows
+      with:
+        path: C:\lua-${{ matrix.lua-version }}
+        key: lua-${{ matrix.lua-version }}-windows-${{ runner.os }}
+    
+    - name: Build Lua from official source (Windows)
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest' && steps.cache-lua-windows.outputs.cache-hit != 'true' }}
+      shell: powershell
+      run: |
+        & "scripts/build-lua-windows.ps1" -LuaVersion "${{ matrix.lua-version }}" -InstallPath "C:\lua-${{ matrix.lua-version }}"
     
     - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu (via apt)
       if: contains(matrix.lua-version, 'luajit') && matrix.os == 'ubuntu-latest'
@@ -101,9 +121,16 @@ jobs:
         echo "LUA_DIR=$(brew --prefix luajit)" >> $GITHUB_ENV
         echo "LUA_INCDIR=$(brew --prefix luajit)/include/luajit-2.1" >> $GITHUB_ENV
     
-    - name: Setup LuaRocks
-      if: ${{ !contains(matrix.lua-version, 'luajit') }}
+    - name: Setup LuaRocks - Non-Windows
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os != 'windows-latest' }}
       uses: leafo/gh-actions-luarocks@e65774a6386cb4f24e293dca7fc4ff89165b64c5 # v4
+    
+    - name: Add Lua to PATH (Windows)
+      if: ${{ !contains(matrix.lua-version, 'luajit') && matrix.os == 'windows-latest' }}
+      shell: powershell
+      run: |
+        # Add Lua to PATH
+        echo "C:\lua-${{ matrix.lua-version }}\bin" >> $env:GITHUB_PATH
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on Ubuntu
       if: contains(matrix.lua-version, 'luajit') && matrix.os == 'ubuntu-latest'
@@ -139,8 +166,8 @@ jobs:
         brew install openssl
         echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
     
-    
-    - name: Install dependencies
+    - name: Install dependencies (Non-Windows)
+      if: ${{ matrix.os != 'windows-latest' }}
       shell: bash
       run: |
         # For Ubuntu LuaJIT, we need to handle luasec SSL configuration
@@ -164,10 +191,22 @@ jobs:
           lua scripts/dev.lua install
         fi
     
-    - name: Run tests with coverage
+    - name: Install dependencies (Windows)
+      if: ${{ matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit') }}
+      shell: powershell
+      run: |
+        & "scripts/install-windows-deps.ps1" -LuaVersion "${{ matrix.lua-version }}" -LuaPath "C:\lua-${{ matrix.lua-version }}"
+    
+    - name: Run tests with coverage (Non-Windows)
+      if: ${{ matrix.os != 'windows-latest' }}
       run: lua scripts/dev.lua coverage
     
-    - name: Validate rockspec installation
+    - name: Run tests (Windows)
+      if: ${{ matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit') }}
+      run: lua scripts/dev.lua test
+    
+    - name: Validate rockspec installation (Non-Windows)
+      if: ${{ matrix.os != 'windows-latest' }}
       shell: bash
       run: |
         # For Ubuntu LuaJIT, update the rockspec test to use local luarocks path  
@@ -177,6 +216,10 @@ jobs:
         else
           lua scripts/dev.lua test-rockspec
         fi
+    
+    - name: Validate rockspec installation (Windows)
+      if: ${{ matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit') }}
+      run: lua scripts/dev.lua test-rockspec
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

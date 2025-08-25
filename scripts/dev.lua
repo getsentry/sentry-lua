@@ -22,9 +22,29 @@ local function file_exists(path)
   return false
 end
 
+local function dir_exists(path)
+  local ok, err, code = os.rename(path, path)
+  if not ok then
+    if code == 13 then
+      -- Permission denied, but it exists
+      return true
+    end
+  end
+  return ok
+end
+
+local function is_windows()
+  return package.config:sub(1,1) == "\\"
+end
+
+local function get_null_redirect()
+  return is_windows() and "2>nul" or "2>/dev/null"
+end
+
 local function get_luarocks_path()
   -- Try to detect luarocks installation
-  local handle = io.popen("luarocks path 2>/dev/null || echo ''")
+  local null_redirect = get_null_redirect()
+  local handle = io.popen("luarocks path " .. null_redirect .. " || echo ''")
   local result = handle:read("*a")
   handle:close()
   return result and result ~= ""
@@ -61,12 +81,12 @@ end
 local function run_tests()
   print("🧪 Running tests...")
 
-  if not file_exists("spec") then
+  if not dir_exists("spec") then
     print("❌ No spec directory found")
     os.exit(1)
   end
 
-  -- Run busted tests
+  -- Run busted tests (busted should be in PATH after LuaRocks installation)
   run_command("busted", "Running test suite")
 end
 
@@ -91,17 +111,27 @@ local function run_lint()
   print("🔍 Running linter...")
 
   -- Try to find luacheck in common locations
-  local luacheck_paths = {
-    "luacheck",
-    "~/.luarocks/bin/luacheck",
-    "/usr/local/bin/luacheck",
-    os.getenv("HOME") .. "/.luarocks/bin/luacheck",
-  }
+  local null_redirect = get_null_redirect()
+  
+  local luacheck_paths
+  if is_windows() then
+    luacheck_paths = {
+      "luacheck",
+      "luacheck.bat",
+    }
+  else
+    luacheck_paths = {
+      "luacheck",
+      "~/.luarocks/bin/luacheck",
+      "/usr/local/bin/luacheck",
+      os.getenv("HOME") .. "/.luarocks/bin/luacheck",
+    }
+  end
 
   local luacheck_cmd = nil
   for _, path in ipairs(luacheck_paths) do
     local expanded_path = path:gsub("~", os.getenv("HOME") or "~")
-    local test_result = os.execute(expanded_path .. " --version 2>/dev/null")
+    local test_result = os.execute(expanded_path .. " --version " .. null_redirect)
     if test_result == 0 or test_result == true then
       luacheck_cmd = expanded_path
       break
@@ -122,7 +152,8 @@ local function run_format_check()
   print("✨ Checking code formatting...")
 
   -- Check if stylua is available
-  local handle = io.popen("stylua --version 2>/dev/null")
+  local null_redirect = get_null_redirect()
+  local handle = io.popen("stylua --version " .. null_redirect)
   local stylua_version = handle:read("*l")
   handle:close()
 
@@ -145,7 +176,8 @@ local function run_format()
   print("✨ Formatting code...")
 
   -- Check if stylua is available
-  local handle = io.popen("stylua --version 2>/dev/null")
+  local null_redirect = get_null_redirect()
+  local handle = io.popen("stylua --version " .. null_redirect)
   local stylua_version = handle:read("*l")
   handle:close()
 
@@ -166,8 +198,10 @@ end
 local function test_rockspec()
   print("📋 Testing rockspec installation...")
 
-  -- Find rockspec file
-  local handle = io.popen("ls *.rockspec 2>/dev/null || dir *.rockspec 2>nul")
+  -- Find rockspec file using cross-platform approach
+  local null_redirect = get_null_redirect()
+  local ls_cmd = is_windows() and "dir *.rockspec /b" or "ls *.rockspec"
+  local handle = io.popen(ls_cmd .. " " .. null_redirect)
   local rockspec = handle:read("*l")
   handle:close()
 
@@ -203,11 +237,12 @@ end
 local function clean()
   print("🧹 Cleaning build artifacts...")
 
-  -- Clean coverage files
-  if file_exists("luacov.stats.out") then run_command("rm luacov.stats.out", "Removing coverage stats") end
-  if file_exists("luacov.report.out") then run_command("rm luacov.report.out", "Removing coverage report") end
-  if file_exists("coverage.info") then run_command("rm coverage.info", "Removing LCOV report") end
-  if file_exists("test-results.xml") then run_command("rm test-results.xml", "Removing test results") end
+  -- Clean coverage files with cross-platform commands
+  local rm_cmd = is_windows() and "del /f /q" or "rm"
+  if file_exists("luacov.stats.out") then run_command(rm_cmd .. " luacov.stats.out", "Removing coverage stats") end
+  if file_exists("luacov.report.out") then run_command(rm_cmd .. " luacov.report.out", "Removing coverage report") end
+  if file_exists("coverage.info") then run_command(rm_cmd .. " coverage.info", "Removing LCOV report") end
+  if file_exists("test-results.xml") then run_command(rm_cmd .. " test-results.xml", "Removing test results") end
 end
 
 local function show_help()
