@@ -1,5 +1,4 @@
 build/
-!tlconfig.lua
 !spec/*.lua
 
 # Coverage files
@@ -8,6 +7,13 @@ luacov.stats.out
 luacov.report.out
 coverage.info
 *.lcov
+
+# Windows development build artifacts
+vendor/
+*.tar.gz
+*.zip
+lua-*
+luarocks-*
 
 # Dependencies and artifacts
 node_modules/

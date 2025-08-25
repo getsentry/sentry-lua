@@ -32,9 +32,13 @@ if (-not $fullVersion) {
 
 Write-Host "Downloading Lua $fullVersion from official source..."
 
+# Create vendor directory for source downloads
+$vendorDir = "vendor\lua-$LuaVersion"
+New-Item -Path $vendorDir -ItemType Directory -Force | Out-Null
+
 # Download official Lua source
 $sourceUrl = "https://www.lua.org/ftp/lua-$fullVersion.tar.gz"
-$sourceFile = "lua-$fullVersion.tar.gz"
+$sourceFile = "$vendorDir\lua-$fullVersion.tar.gz"
 
 try {
     Invoke-WebRequest -Uri $sourceUrl -OutFile $sourceFile
@@ -45,10 +49,20 @@ try {
 
 # Extract source
 Write-Host "Extracting source..."
-& "7z" x $sourceFile
-& "7z" x "lua-$fullVersion.tar"
+Push-Location $vendorDir
+if (Get-Command "7z" -ErrorAction SilentlyContinue) {
+    & "7z" x "lua-$fullVersion.tar.gz"
+    & "7z" x "lua-$fullVersion.tar"
+} elseif (Get-Command "tar" -ErrorAction SilentlyContinue) {
+    # Use built-in Windows tar (Windows 10+)
+    & tar -xzf "lua-$fullVersion.tar.gz"
+} else {
+    throw "Neither 7z nor tar found. Please install 7-Zip or use Windows 10+"
+}
+Pop-Location
 
-if (-not (Test-Path "lua-$fullVersion")) {
+$sourceDir = "$vendorDir\lua-$fullVersion"
+if (-not (Test-Path $sourceDir)) {
     throw "Failed to extract Lua source"
 }
 
@@ -58,15 +72,41 @@ New-Item -Path "$InstallPath\bin" -ItemType Directory -Force | Out-Null
 New-Item -Path "$InstallPath\include" -ItemType Directory -Force | Out-Null  
 New-Item -Path "$InstallPath\lib" -ItemType Directory -Force | Out-Null
 
-# Set up Visual Studio environment
-Write-Host "Setting up Visual Studio compiler environment..."
-$vcvarsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-if (-not (Test-Path $vcvarsPath)) {
-    throw "Visual Studio 2022 not found at expected location"
+# Find and set up Visual Studio environment
+Write-Host "Looking for Visual Studio compiler..."
+
+# Try to find Visual Studio in common locations
+$vsBasePaths = @(
+    "${env:ProgramFiles}\Microsoft Visual Studio",
+    "${env:ProgramFiles(x86)}\Microsoft Visual Studio"
+)
+
+$vcvarsPath = $null
+foreach ($basePath in $vsBasePaths) {
+    if (Test-Path $basePath) {
+        $vsVersions = Get-ChildItem $basePath -Directory | Sort-Object Name -Descending
+        foreach ($version in $vsVersions) {
+            $editions = @("Enterprise", "Professional", "Community", "BuildTools")
+            foreach ($edition in $editions) {
+                $candidatePath = "$($version.FullName)\$edition\VC\Auxiliary\Build\vcvars64.bat"
+                if (Test-Path $candidatePath) {
+                    $vcvarsPath = $candidatePath
+                    Write-Host "Found Visual Studio at: $candidatePath"
+                    break
+                }
+            }
+            if ($vcvarsPath) { break }
+        }
+    }
+    if ($vcvarsPath) { break }
+}
+
+if (-not $vcvarsPath) {
+    throw "Visual Studio compiler not found. Please install Visual Studio with C++ support."
 }
 
 # Build Lua using Visual Studio compiler
-Push-Location "lua-$fullVersion\src"
+Push-Location "$sourceDir\src"
 
 Write-Host "Compiling Lua source files..."
 
