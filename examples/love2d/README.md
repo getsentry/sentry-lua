@@ -47,7 +47,7 @@ love sentry-love2d-demo.love
 
 ### Transport Implementation
 
-The Love2D platform uses a custom transport (`src/sentry/platforms/love2d/transport.tl`) that:
+The Love2D platform uses a custom transport that:
 
 1. Queues events and envelopes for async processing
 2. Uses `love.thread` to send HTTP requests without blocking the game
