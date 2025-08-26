@@ -195,7 +195,7 @@ jobs:
       if: ${{ matrix.os == 'windows-latest' && !contains(matrix.lua-version, 'luajit') }}
       shell: powershell
       run: |
-        & "scripts/install-windows-deps.ps1" -LuaVersion "${{ matrix.lua-version }}" -LuaPath "C:\lua-${{ matrix.lua-version }}"
+        & "scripts/setup-windows-dev.ps1" -LuaVersion "${{ matrix.lua-version }}" -RootPath "build"
     
     - name: Run tests with coverage (Non-Windows)
       if: ${{ matrix.os != 'windows-latest' }}
