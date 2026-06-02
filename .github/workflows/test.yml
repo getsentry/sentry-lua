@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-15]
         lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit-2.0", "luajit-2.1"]
         include:
           - lua-version: "luajit-2.0" 
@@ -52,7 +52,7 @@ jobs:
         echo "LUA_INCDIR=/usr/include/luajit-2.1" >> $GITHUB_ENV
     
     - name: Setup ${{ matrix.luajit-label || 'LuaJIT' }} on macOS (via Homebrew)
-      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-15'
       run: |
         brew install luajit
         # Create symlinks for compatibility
@@ -79,7 +79,7 @@ jobs:
         echo 'LUAROCKS_FLAGS=--local' >> $GITHUB_ENV
     
     - name: Setup LuaRocks for ${{ matrix.luajit-label || 'LuaJIT' }} on macOS
-      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-latest'
+      if: contains(matrix.lua-version, 'luajit') && matrix.os == 'macos-15'
       run: |
         brew install luarocks
         # Configure luarocks to work with luajit
@@ -94,7 +94,7 @@ jobs:
         sudo apt-get install -y libssl-dev
     
     - name: Install SSL dependencies (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
       run: |
         brew install openssl
         echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
