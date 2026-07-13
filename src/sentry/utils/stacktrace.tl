@@ -22,7 +22,12 @@ local function get_source_context(filename: string, line_number: number): string
       return "", empty_array, empty_array
    end
    
-   -- Try to open and read the file
+   -- Try to open and read the file. Sandboxes (WoW, Roblox, restricted Factorio)
+   -- have no `io` and no readable source anyway — skip source context cleanly
+   -- instead of indexing a nil `io` (which would crash the whole capture).
+   if not io then
+      return "", empty_array, empty_array
+   end
    local file = io.open(filename, "r")
    if not file then
       return "", empty_array, empty_array
@@ -67,7 +72,14 @@ local function get_stack_trace(skip_frames: number): StackTrace
    skip_frames = skip_frames or 0
    local frames: {StackFrame} = {}
    local level = 2 + (skip_frames or 0)
-   
+
+   -- Sandboxes ship a partial debug library (WoW has debugstack but not the
+   -- introspection API). Without debug.getinfo there is no stack to walk — return
+   -- empty rather than crashing the capture.
+   if not debug or not debug.getinfo then
+      return frames
+   end
+
    while true do
       local info = debug.getinfo(level as integer, "nSluf")
       if not info then
@@ -103,9 +115,11 @@ local function get_stack_trace(skip_frames: number): StackTrace
          function_name = info.name or "<C function>"
       end
       
-      -- Collect local variables and parameters
+      -- Collect local variables and parameters. Requires debug.getlocal, which
+      -- sandboxes (WoW) omit — skipping it there also avoids capturing local
+      -- values that could hold player data (belt-and-suspenders with the scrubber).
       local vars: {string:any} = {}
-      if info.what == "Lua" and in_app then -- Only collect vars for user code
+      if info.what == "Lua" and in_app and debug.getlocal then -- Only collect vars for user code
          -- Get parameters first (they're usually the first N locals)
          for i = 1, (info.nparams or 0) do
             local name, value = debug.getlocal(level as integer, i)

@@ -4,6 +4,7 @@ local record HTTPResponse
    body: string
    success: boolean
    error: string
+   headers: {string: string}
 end
 
 local record HTTPRequest
@@ -40,19 +41,20 @@ local function try_luasocket()
             end
             
             local response_body = {}
-            local result, status = http_lib.request({
+            local result, status, resp_headers = http_lib.request({
                url = url,
                method = req.method,
                headers = req.headers,
                source = req.body and ltn12.source.string(req.body) or nil,
                sink = ltn12.sink.table(response_body)
             })
-            
+
             return {
                success = result ~= nil,
-               status = status or 0,
+               status = (status as number) or 0,
                body = table.concat(response_body or {}),
-               error = result and "" or "HTTP request failed"
+               error = result and "" or "HTTP request failed",
+               headers = (resp_headers as {string: string}) or {}
             }
          end
       }, "luasocket"
@@ -80,14 +82,16 @@ local function try_roblox()
                      success = true,
                      status = response.StatusCode,
                      body = response.Body,
-                     error = ""
+                     error = "",
+                     headers = (response.Headers as {string: string}) or {}
                   }
                else
                   return {
                      success = false,
                      status = 0,
                      body = "",
-                     error = tostring(response)
+                     error = tostring(response),
+                     headers = {}
                   }
                end
             end
@@ -117,14 +121,16 @@ local function try_openresty()
                      success = true,
                      status = res.status,
                      body = res.body,
-                     error = ""
+                     error = "",
+                     headers = (res.headers as {string: string}) or {}
                   }
                else
                   return {
                      success = false,
                      status = 0,
                      body = "",
-                     error = err or "HTTP request failed"
+                     error = err or "HTTP request failed",
+                     headers = {}
                   }
                end
             end
@@ -158,7 +164,8 @@ if not http_impl then
             success = false,
             status = 0,
             body = "",
-            error = "No HTTP implementation available"
+            error = "No HTTP implementation available",
+            headers = {}
          }
       end
    }

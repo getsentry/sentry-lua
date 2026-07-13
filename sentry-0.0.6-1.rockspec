@@ -27,24 +27,11 @@ build = {
    type = "command",
    build_command = [[
       echo "=== Starting Teal compilation ==="
-      
-      # Create build directory structure
-      mkdir -p build/sentry/core
-      mkdir -p build/sentry/logger
-      mkdir -p build/sentry/performance
-      mkdir -p build/sentry/platforms/defold
-      mkdir -p build/sentry/platforms/love2d
-      mkdir -p build/sentry/platforms/nginx
-      mkdir -p build/sentry/platforms/redis
-      mkdir -p build/sentry/platforms/roblox
-      mkdir -p build/sentry/platforms/standard
-      mkdir -p build/sentry/platforms/test
-      mkdir -p build/sentry/tracing
-      mkdir -p build/sentry/utils
-      
-      # Compile all Teal files to Lua
+
+      # Compile all Teal files to Lua, creating output directories as needed.
       find src/sentry -name "*.tl" -type f | while read -r tl_file; do
          lua_file=$(echo "$tl_file" | sed 's|^src/|build/|' | sed 's|\.tl$|.lua|')
+         mkdir -p "$(dirname "$lua_file")"
          echo "Compiling: $tl_file -> $lua_file"
          tl gen "$tl_file" -o "$lua_file"
          if [ $? -ne 0 ]; then
@@ -52,7 +39,7 @@ build = {
             exit 1
          fi
       done
-      
+
       echo "=== Teal compilation completed ==="
    ]],
    install_command = [[

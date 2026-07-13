@@ -112,10 +112,22 @@ This project is written in [Teal](https://github.com/teal-language/tl), a typed 
 
 ### Linting
 
+Linting uses a **ratchet**: `tl check` (strict type-checking) runs over an allowlist of
+files that are known to be clean, and CI fails if any of them regresses. This lets us
+enforce type-safety today without blocking on the pre-existing backlog (the build, `tl gen`,
+does not type-check).
+
 ```bash
-make lint        # Strict linting (may fail on external modules)
-make lint-soft   # Permissive linting (warnings ignored)
+make lint        # Blocking: fails if an allowlisted (known-clean) file regresses
+make lint-all    # Non-blocking: full-project tl check report (pick the next file to clean)
+make lint-soft   # Legacy permissive lint
 ```
+
+To migrate a file: make it (and its whole `require`-tree) pass `make lint-all` cleanly, then
+add its path to `scripts/lint-allowlist.txt`. Platform globals (`game`, `ngx`, `love`, …) are
+declared in `teal-types.d.tl` and supplied to `tl check` via `--global-env-def` (the build is
+unaffected). Common fixes: cast to `{string: any}` before indexing (not `any`, which Teal treats
+as opaque); use a non-literal module name for optional `require`s; annotate function return types.
 
 ### Code Organization
 

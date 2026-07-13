@@ -1,0 +1,10 @@
+## Interface: 100205
+## Title: Sentry Example
+## Notes: Example World of Warcraft addon wired up to Sentry
+## Author: sentry-lua
+## Version: 1.0.0
+## SavedVariables: SentryExampleDB
+
+# The bundled SDK (generate with `make bundle`, then copy dist/sentry-bundle.lua here)
+sentry-bundle.lua
+SentryExample.lua

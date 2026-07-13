@@ -20,11 +20,19 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 
 - **Platform Agnostic**: Works across Redis, nginx, Roblox, game engines, and standard Lua
 - **Type Safe**: Written in Teal Language with full type definitions
-- **Comprehensive**: Error tracking, breadcrumbs, context management, and scoped operations
-- **Performance Monitoring**: Object-oriented API for transactions and spans with distributed tracing
+- **Spec-correct transport**: Envelope-based delivery with a bounded async queue,
+  `flush`/`close` timeouts, rate limiting (`X-Sentry-Rate-Limits` + 429), and client reports
+- **Scopes**: global / isolation / current scope model with `with_scope` / `configure_scope`,
+  tags, user, contexts, breadcrumbs and fingerprints
+- **Performance Monitoring**: Transactions and spans with `traces_sample_rate` / `traces_sampler`
+  and a frozen Dynamic Sampling Context
 - **Distributed Tracing**: Automatic trace propagation across service boundaries via HTTP headers
-- **Structured Logging**: Built-in logging with batching, print hooks, and trace correlation
-- **Extensible**: Pluggable transport system for different environments
+- **Release Health**: Sessions with crash/error tracking
+- **Structured Logging** and **Metrics**: independent buffered streams (`sentry.logger`, `sentry.metrics`)
+- **Attachments**: attach files/screenshots to events
+- **Privacy**: default PII scrubbing (`send_default_pii`), inbound filters (`ignore_errors`)
+- **Sandboxed platforms**: spool + companion uploader for environments with no network
+- **Extensible**: Pluggable transport system and integration API
 
 ## Supported Platforms
 
@@ -35,6 +43,8 @@ one of [Sentry's latest platform investments](https://blog.sentry.io/playstation
 - Defold game engine
 - Redis (lua scripting)
 - nginx/OpenResty
+- World of Warcraft addons (spooled; rich game/addon context)
+- Factorio mods (spooled; game version + active mod list)
 
 ## Installation
 
@@ -154,17 +164,64 @@ sentry.close()
 
 ## API Reference
 
-- `sentry.init(config)` - Initialize the Sentry client with configuration
-- `sentry.capture_message(message, level)` - Capture a log message  
-- `sentry.capture_exception(exception, level)` - Capture an exception
-- `sentry.set_user(user)` - Set user context
-- `sentry.set_tag(key, value)` - Add a tag for filtering
-- `sentry.set_extra(key, value)` - Add extra debugging information
+- `sentry.init(config)` - Initialize the Sentry client (an empty/missing DSN is valid → disabled no-op)
+- `sentry.capture_message(message, level)` - Capture a log message
+- `sentry.capture_exception(exception, level, hint)` - Capture an exception (string, table, or any value)
+- `sentry.start_transaction(name, op, options)` / `sentry.capture_transaction(tx)` - Performance
+- `sentry.continue_trace(request_headers)` / `sentry.get_trace_data(url)` - Distributed tracing propagation
+- `sentry.set_user(user)` / `set_tag(k, v)` / `set_extra(k, v)` / `set_context(k, v)` / `set_fingerprint(fp)`
 - `sentry.add_breadcrumb(breadcrumb)` - Add a breadcrumb for debugging context
-- `sentry.flush()` - Force immediate sending of pending events
-- `sentry.close()` - Clean shutdown of the Sentry client
-- `sentry.with_scope(callback)` - Execute code with isolated scope
+- `sentry.add_attachment(filename, data, content_type, attachment_type)` - Attach a file/screenshot
+- `sentry.flush(timeout_ms)` / `sentry.close(timeout_ms)` - Deliver queued events / shut down (returns delivered?)
+- `sentry.with_scope(cb)` / `sentry.with_isolation_scope(cb)` / `sentry.configure_scope(cb)` - Scope management
 - `sentry.wrap(main_function, error_handler)` - Wrap function with error handling
+
+Platform integrations (auto-attach rich context + install error handlers) via the `integrations`
+option: `sentry.platforms.roblox.integration`, `.defold.integration`, `.nginx.integration`,
+`.wow.integration`, `.factorio.integration`.
+
+Additional modules: `require("sentry.logger")` (structured logs), `require("sentry.metrics")`
+(trace-connected metrics), `require("sentry.tracing")` / `require("sentry.performance")`.
+
+### Selected `init` options
+
+| Option | Description |
+|---|---|
+| `dsn`, `release`, `environment`, `debug` | Core config (also from `SENTRY_DSN`/`SENTRY_RELEASE`/`SENTRY_ENVIRONMENT`) |
+| `sample_rate`, `traces_sample_rate`, `traces_sampler` | Error / transaction sampling |
+| `before_send`, `before_breadcrumb`, `before_send_transaction` | Hooks |
+| `ignore_errors`, `deny_urls`, `attach_stacktrace`, `max_breadcrumbs` | Filtering / message stack traces |
+| `scheduler` | Defer draining to a platform loop (OpenResty timer, Roblox task, Love2D update) |
+| `send_default_pii`, `send_client_reports` | Privacy / diagnostics |
+| `auto_session_tracking` | Release health (needs a `release`) |
+| `max_queue_size`, `max_attachment_size` | Limits |
+| `spool`, `spool_path`, `persistence_provider` | Sandboxed (no-network) delivery |
+| `integrations` | List of `{ name, setup(client) }` integrations |
+
+## Sandboxed platforms (no network)
+
+Environments like World of Warcraft addons and Factorio mods cannot make HTTP
+requests. Initialize with `spool = true` and a persistence provider; a companion
+uploader (`sentry.uploader`) delivers the spooled envelopes from a networked
+context. The platform integrations attach rich context out of the box (game
+version/build, locale, realm, and the full list of running addons/mods with versions):
+
+```lua
+local sentry = require("sentry")
+local wow = require("sentry.platforms.wow.integration")
+
+MyAddonDB = MyAddonDB or {}
+sentry.init({
+  dsn = "https://key@org.ingest.sentry.io/1",
+  release = "MyAddon@1.0.0",
+  spool = true,
+  persistence_provider = wow.saved_variables_provider(MyAddonDB),
+  integrations = { wow.integration() },
+})
+```
+
+See `examples/wow/`, `examples/factorio/` and `examples/uploader.lua`. Build a
+single-file bundle for these platforms with `make bundle`.
 
 ## Distributed Tracing
 

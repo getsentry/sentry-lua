@@ -184,13 +184,13 @@ function headers.parse_baggage(header_value: string): {string: string}
 
     -- Split by comma to get individual baggage items
     for item in header_value:gmatch("[^,]+") do
-        local trimmed_item = item:match("^%s*(.-)%s*$") -- Trim whitespace
-        if trimmed_item then
-            item = trimmed_item
-        end
-        
+        -- Trim into a new local: the generic-for control variable is read-only
+        -- in Lua 5.4+ (reassigning it is a compile error), while Lua 5.1 (WoW)
+        -- allows it. A fresh local is correct on both.
+        local part = item:match("^%s*(.-)%s*$") or item
+
         -- Split by semicolon to separate key=value from properties
-        local key_value_part = item:match("([^;]*)")
+        local key_value_part = part:match("([^;]*)")
         if key_value_part then
             local trimmed_kvp = key_value_part:match("^%s*(.-)%s*$")
             if trimmed_kvp then

@@ -1,46 +1,43 @@
--- Defold transport (similar to file transport but optimized for Defold)
+-- Defold transport: queues serialized envelopes for later delivery.
+-- Defold apps typically drain the queue from their own update loop.
 local transport_utils = require("sentry.utils.transport")
-local json = require("sentry.utils.json")
 local version = require("sentry.version")
 
 local record DefoldTransport
    endpoint: string
    timeout: number
    headers: {string: string}
-   event_queue: {table}
+   envelope_queue: {string}
 end
 
-function DefoldTransport:send(event: table): boolean, string
-   -- In Defold, we typically queue events and process them later
-   table.insert(self.event_queue, event)
-   
-   return true, "Event queued for Defold processing"
+function DefoldTransport:send_envelope(payload: string, _categories: {string}): boolean, string
+   table.insert(self.envelope_queue, payload)
+   return true, "Envelope queued for Defold processing"
 end
 
 function DefoldTransport:configure(config: table): transport_utils.Transport
-   self.endpoint = (config as any).dsn or ""
-   self.timeout = (config as any).timeout or 30
-   self.event_queue = {}
+   self.endpoint = (config as {string: any}).dsn or ""
+   self.timeout = (config as {string: any}).timeout or 30
+   self.envelope_queue = {}
    self.headers = {
-      ["Content-Type"] = "application/json",
+      ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua-defold/" .. version
    }
    return self as transport_utils.Transport
 end
 
--- Flush queued events (call this from your Defold script)
+-- Flush queued envelopes (call this from your Defold script)
 function DefoldTransport:flush()
-   if #self.event_queue == 0 then
+   if #self.envelope_queue == 0 then
       return
    end
-   
-   for _, event in ipairs(self.event_queue) do
-      local body = json.encode(event)
-      -- In Defold, you would implement HTTP requests or file writing here
-      print("[Sentry] Would send event: " .. ((event as any).event_id or "unknown"))
+
+   for _, _payload in ipairs(self.envelope_queue) do
+      -- In Defold, implement HTTP delivery (http.request) or file writing here.
+      print("[Sentry] Would send queued envelope")
    end
-   
-   self.event_queue = {}
+
+   self.envelope_queue = {}
 end
 
 -- Create factory function
@@ -51,9 +48,8 @@ end
 
 -- Check if Defold transport is available (basic check)
 local function is_defold_available(): boolean
-   -- We could check for Defold-specific globals here if available
-   -- For now, we'll assume it's always available as a fallback
-   return false -- Set to false so it doesn't interfere with other transports
+   -- Disabled by default so it doesn't interfere with other transports.
+   return false
 end
 
 -- Register this transport factory with low priority

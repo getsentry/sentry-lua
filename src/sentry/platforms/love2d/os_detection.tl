@@ -2,8 +2,10 @@ local os_utils = require("sentry.utils.os")
 local OSInfo = os_utils.OSInfo
 
 local function detect_os(): OSInfo
-   if _G.love and (_G.love as any).system then
-      local os_name = (_G.love as any).system.getOS()
+   local love_g = _G.love as {string: any}
+   local system = love_g and (love_g["system"] as {string: any})
+   if system and system["getOS"] then
+      local os_name = (system["getOS"] as function(): string)()
       if os_name then
          return {
             name = os_name,

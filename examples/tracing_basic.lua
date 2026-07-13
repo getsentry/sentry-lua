@@ -11,7 +11,8 @@ local performance = require("sentry.performance")
 sentry.init({
     dsn = "https://e247e6e48f8f482499052a65adaa9f6b@o117736.ingest.us.sentry.io/4504930623356928",
     debug = true,
-    environment = "tracing-basic-example"
+    environment = "tracing-basic-example",
+    traces_sample_rate = 1.0  -- capture all transactions
 })
 
 print("🎯 Basic Distributed Tracing Example")

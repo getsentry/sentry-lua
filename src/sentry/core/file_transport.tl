@@ -1,5 +1,4 @@
 local file_io = require("sentry.core.file_io")
-local json = require("sentry.utils.json")
 local version = require("sentry.version")
 
 local record FileTransport
@@ -11,11 +10,9 @@ local record FileTransport
    append_mode: boolean
 end
 
-function FileTransport:send(event: table): boolean, string
-   local serialized = json.encode(event)
-   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-   local content = string.format("[%s] %s\n", timestamp, serialized)
-   
+function FileTransport:send_envelope(payload: string, _categories: {string}): boolean, string
+   local content = payload .. "\n"
+
    if self.append_mode and self.file_io:file_exists(self.file_path) then
       local existing_content, read_err = self.file_io:read_file(self.file_path)
       if read_err ~= "" then
@@ -23,13 +20,13 @@ function FileTransport:send(event: table): boolean, string
       end
       content = existing_content .. content
    end
-   
+
    local success, err = self.file_io:write_file(self.file_path, content)
-   
+
    if success then
-      return true, "Event written to file: " .. self.file_path
+      return true, "Envelope written to file: " .. self.file_path
    else
-      return false, "Failed to write event: " .. err
+      return false, "Failed to write envelope: " .. err
    end
 end
 

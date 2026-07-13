@@ -65,21 +65,9 @@ describe("sentry.platforms.love2d", function()
             
             local transport = transport_module.create_love2d_transport(config)
             assert.is_not_nil(transport)
-            assert.is_function(transport.send)
+            assert.is_function(transport.send_envelope)
         end)
-        
-        it("should queue events for async sending", function()
-            local config = {
-                dsn = "https://key@host/123"
-            }
-            
-            local transport = transport_module.create_love2d_transport(config)
-            local success, message = transport:send({event_id = "test123"})
-            
-            assert.is_true(success)
-            assert.matches("queued", message)
-        end)
-        
+
         it("should queue envelopes for async sending", function()
             local config = {
                 dsn = "https://key@host/123"
@@ -105,27 +93,6 @@ describe("sentry.platforms.love2d", function()
             end)
         end)
         
-        it("should queue events but not process them without lua-https", function()
-            local config = {
-                dsn = "https://key@host/123"
-            }
-            
-            local transport = transport_module.create_love2d_transport(config)
-            
-            -- Queue some events
-            local test_event = {event_id = "test123", message = "test message"}
-            transport:send(test_event)
-            
-            -- Verify event was queued
-            assert.equals(1, #transport.event_queue)
-            
-            -- Flush should return early without lua-https, leaving queues intact
-            transport:flush()
-            
-            -- Queue should still have items since lua-https is not available
-            assert.equals(1, #transport.event_queue)
-        end)
-        
         it("should queue envelopes but not process them without lua-https", function()
             local config = {
                 dsn = "https://key@host/123"
@@ -147,28 +114,23 @@ describe("sentry.platforms.love2d", function()
             assert.equals(1, #transport.envelope_queue)
         end)
         
-        it("should manage both event and envelope queues independently", function()
+        it("should queue multiple envelopes", function()
             local config = {
                 dsn = "https://key@host/123"
             }
-            
+
             local transport = transport_module.create_love2d_transport(config)
-            
-            -- Queue multiple items
-            transport:send({event_id = "event1"})
-            transport:send({event_id = "event2"})
+
+            -- Queue multiple envelopes
             transport:send_envelope("envelope1")
             transport:send_envelope("envelope2")
-            
-            -- Verify items were queued
-            assert.equals(2, #transport.event_queue)
+
+            -- Verify envelopes were queued
             assert.equals(2, #transport.envelope_queue)
-            
-            -- Without lua-https, flush returns early and queues remain
+
+            -- Without lua-https, flush returns early and the queue remains
             transport:flush()
-            
-            -- Both queues should still have items
-            assert.equals(2, #transport.event_queue)
+
             assert.equals(2, #transport.envelope_queue)
         end)
         

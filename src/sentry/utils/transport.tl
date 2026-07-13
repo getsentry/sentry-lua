@@ -1,7 +1,13 @@
--- Platform-agnostic transport registry with dependency injection
+-- Platform-agnostic transport registry with dependency injection.
+-- Every transport ships a single, pre-serialized envelope string. `categories`
+-- lists the Sentry data categories in the envelope (used for rate limiting).
+-- HTTP transports additionally return the response status and headers so the
+-- client can apply rate limiting; others return only (ok, message).
 local record Transport
-   send: function(self: Transport, event: table): boolean, string
+   send_envelope: function(self: Transport, payload: string, categories: {string}): boolean, string, number, {string: string}
    configure: function(self: Transport, config: table): Transport
+   flush: function(self: Transport)
+   close: function(self: Transport)
 end
 
 local record TransportFactory

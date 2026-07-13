@@ -4,7 +4,8 @@ local OSInfo = os_utils.OSInfo
 local function detect_os(): OSInfo
    -- In Roblox, we can't execute system commands
    -- But we can detect we're in Roblox environment
-   if _G.game and _G.game.GetService then
+   local game_g = _G.game as {string: any}
+   if game_g and game_g["GetService"] then
       return {
          name = "Roblox",
          version = nil

@@ -163,42 +163,44 @@ describe("DSN Parsing", function()
    end)
    
    describe("URL building", function()
-      it("should build correct ingest URL", function()
+      -- Modern SDKs only use the envelope endpoint; the legacy /store/ endpoint
+      -- is intentionally unsupported.
+      it("should build correct envelope URL", function()
          local dsn = {
             protocol = "https",
             host = "sentry.io",
             project_id = "123456"
          }
-         
-         local url = dsn_utils.build_ingest_url(dsn)
-         assert.are.equal("https://sentry.io/api/123456/store/", url)
+
+         local url = dsn_utils.build_envelope_url(dsn)
+         assert.are.equal("https://sentry.io/api/123456/envelope/", url)
       end)
-      
-      it("should build correct ingest URL for HTTP", function()
+
+      it("should build correct envelope URL for HTTP", function()
          local dsn = {
             protocol = "http",
             host = "localhost",
             project_id = "789"
          }
-         
-         local url = dsn_utils.build_ingest_url(dsn)
-         assert.are.equal("http://localhost/api/789/store/", url)
+
+         local url = dsn_utils.build_envelope_url(dsn)
+         assert.are.equal("http://localhost/api/789/envelope/", url)
       end)
    end)
    
    describe("Auth header building", function()
-      it("should build auth header with secret key", function()
+      it("should never emit a secret key even when the DSN contains one", function()
+         -- Secret keys are deprecated and must never be sent by a modern SDK.
          local dsn = {
             public_key = "public123",
             secret_key = "secret456"
          }
-         
+
          local header = dsn_utils.build_auth_header(dsn)
-         
-         -- Check that all required parts are present (version-agnostic)
+
          assert.is_true(header:find("Sentry sentry_version=7") ~= nil)
          assert.is_true(header:find("sentry_key=public123") ~= nil)
-         assert.is_true(header:find("sentry_secret=secret456") ~= nil)
+         assert.is_true(header:find("sentry_secret") == nil)
          assert.is_true(header:find("sentry_client=sentry%-lua/") ~= nil)  -- Version-agnostic check
       end)
       

@@ -1,45 +1,42 @@
--- Roblox-specific transport using HttpService
+-- Roblox-specific transport using HttpService.
+-- Ships pre-serialized envelopes to the Sentry envelope endpoint.
 local transport_utils = require("sentry.utils.transport")
 local dsn_utils = require("sentry.utils.dsn")
-local json = require("sentry.utils.json")
 local version = require("sentry.version")
 
 local record RobloxTransport
-   endpoint: string
+   envelope_endpoint: string
    timeout: number
    headers: {string: string}
    dsn: dsn_utils.DSN
 end
 
-function RobloxTransport:send(event: table): boolean, string
+function RobloxTransport:send_envelope(payload: string, _categories: {string}): boolean, string
    -- Check if we're in Roblox environment
    if not _G.game then
       return false, "Not in Roblox environment"
    end
-   
+
    local success_service, HttpService = pcall(function()
       return (_G.game as any):GetService("HttpService")
    end)
-   
+
    if not success_service or not HttpService then
       return false, "HttpService not available in Roblox"
    end
-   
-   local body = json.encode(event)
-   
+
    local success, response = pcall(function()
-      return HttpService:PostAsync(self.endpoint, body, 
-         (_G as any).Enum.HttpContentType.ApplicationJson, 
-         false, -- compress 
+      return HttpService:PostAsync(self.envelope_endpoint, payload,
+         (_G as any).Enum.HttpContentType.ApplicationJson,
+         false, -- compress
          self.headers
       )
    end)
-   
+
    if success then
-      return true, "Event sent via Roblox HttpService"
-   else
-      return false, "Roblox HTTP error: " .. tostring(response)
+      return true, "Envelope sent via Roblox HttpService"
    end
+   return false, "Roblox HTTP error: " .. tostring(response)
 end
 
 function RobloxTransport:configure(config: table): transport_utils.Transport
@@ -47,12 +44,12 @@ function RobloxTransport:configure(config: table): transport_utils.Transport
    if err then
       error("Invalid DSN: " .. err)
    end
-   
+
    self.dsn = dsn
-   self.endpoint = dsn_utils.build_ingest_url(dsn)
+   self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
    self.timeout = (config as any).timeout or 30
    self.headers = {
-      ["Content-Type"] = "application/json",
+      ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua-roblox/" .. version,
       ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn)
    }
@@ -73,7 +70,7 @@ end
 -- Register this transport factory with high priority for Roblox
 transport_utils.register_transport_factory({
    name = "roblox",
-   priority = 200, -- Very high priority in Roblox environment  
+   priority = 200, -- Very high priority in Roblox environment
    create = create_roblox_transport,
    is_available = is_roblox_available
 })

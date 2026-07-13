@@ -7,13 +7,36 @@ local record SentryOptions
    release: string
    debug: boolean
    sample_rate: number
+   traces_sample_rate: number
+   traces_sampler: function(sampling_context: table): number
+   before_send_transaction: function(transaction: table): table
    max_breadcrumbs: number
+   max_queue_size: number
+   scheduler: function(function())
+   send_client_reports: boolean
+   send_default_pii: boolean
+   auto_session_tracking: boolean
+   -- Whether an unhandled error terminates the release-health session (crashed).
+   -- True in runtimes where unhandled == process death; set false where the host
+   -- catches errors and keeps running (e.g. WoW addons), so such errors mark the
+   -- session errored instead. Defaults to true.
+   mark_unhandled_as_crash: boolean
+   max_attachment_size: number
    before_send: function(event: table): table
+   before_breadcrumb: function(breadcrumb: table): table
+   ignore_errors: {string}
+   deny_urls: {string}
+   attach_stacktrace: boolean
+   integrations: {any}
    transport: any
    test_transport: boolean
    file_transport: boolean
    file_path: string
    append_mode: boolean
+   spool: boolean
+   spool_path: string
+   persistence_provider: any
+   file_io: any
 end
 
 -- User information

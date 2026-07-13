@@ -115,17 +115,18 @@ function transaction_mt:finish(status: string)
       status = self.status
    }
    
-   -- Use the main sentry client to send the transaction
+   -- Submit the transaction through the main client, which applies sampling,
+   -- the dynamic sampling context, scope data and the outbound queue.
    if sentry._client then
-      local envelope = require("sentry.utils.envelope")
-      if sentry._client.transport and sentry._client.transport.send_envelope then
-         local envelope_data = envelope.build_transaction_envelope(transaction_data, self.event_id)
-         local transport_success, err = sentry._client.transport:send_envelope(envelope_data)
-         
-         if transport_success then
-            print("[Sentry] Transaction sent: " .. self.event_id)
+      local client = sentry._client as any
+      local ok, err = pcall(function()
+         client:capture_transaction(transaction_data)
+      end)
+      if sentry._client.options and sentry._client.options.debug then
+         if ok then
+            print("[Sentry] Transaction captured: " .. self.event_id)
          else
-            print("[Sentry] Failed to send transaction: " .. tostring(err))
+            print("[Sentry] Failed to capture transaction: " .. tostring(err))
          end
       end
    end

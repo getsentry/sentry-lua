@@ -48,7 +48,7 @@ local function parse_dsn(dsn_string: string): DSN, string
    end
    
    -- Parse port from host
-   local port = 443
+   local port: number = 443
    if protocol == "http" then
       port = 80
    end
@@ -72,38 +72,28 @@ local function parse_dsn(dsn_string: string): DSN, string
    }, nil  -- Return nil instead of empty string for no error
 end
 
-local function build_ingest_url(dsn: DSN): string
-   return string.format("%s://%s/api/%s/store/", 
-      dsn.protocol, 
-      dsn.host, 
-      dsn.project_id)
-end
-
+-- Envelope endpoint. This is the only ingestion endpoint modern SDKs use; the
+-- legacy /store/ endpoint is intentionally not supported.
 local function build_envelope_url(dsn: DSN): string
-   return string.format("%s://%s/api/%s/envelope/", 
-      dsn.protocol, 
-      dsn.host, 
+   return string.format("%s://%s/api/%s/envelope/",
+      dsn.protocol,
+      dsn.host,
       dsn.project_id)
 end
 
+-- Build the X-Sentry-Auth header. Secret keys are deprecated and never emitted.
 local function build_auth_header(dsn: DSN): string
    local auth_parts = {
       "Sentry sentry_version=7",
       "sentry_key=" .. dsn.public_key,
       "sentry_client=sentry-lua/" .. version
    }
-   
-   if dsn.secret_key and dsn.secret_key ~= "" then
-      table.insert(auth_parts, "sentry_secret=" .. dsn.secret_key)
-   end
-   
    return table.concat(auth_parts, ", ")
 end
 
 
 return {
    parse_dsn = parse_dsn,
-   build_ingest_url = build_ingest_url,
    build_envelope_url = build_envelope_url,
    build_auth_header = build_auth_header,
    DSN = DSN

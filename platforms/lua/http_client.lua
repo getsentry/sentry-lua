@@ -94,6 +94,49 @@ function http_client.wrap_generic_client(http_client_func)
     end
 end
 
+---Wrap a request function so each call injects trace headers AND (when a
+---transaction is active) records an `http.client` span. Degrades to plain
+---header injection if the performance layer is unavailable.
+---@param make_request function Function taking (url, options) and returning a response
+---@return function wrapped Request function with tracing + spans
+function http_client.wrap_with_span(make_request)
+    if type(make_request) ~= "function" then
+        error("make_request must be a function")
+    end
+
+    return function(url, options)
+        options = options or {}
+        local method = options.method or "GET"
+
+        -- Inject trace headers (respects trace_propagation_targets).
+        if url and tracing.is_active() then
+            options.headers = options.headers or {}
+            for key, value in pairs(tracing.get_request_headers(url)) do
+                options.headers[key] = value
+            end
+        end
+
+        -- Best-effort http.client span; no-op if there is no active transaction.
+        local span
+        pcall(function()
+            span = tracing.start_span("http.client", method .. " " .. tostring(url), {
+                data = { ["http.url"] = url, ["http.method"] = method }
+            })
+        end)
+
+        local ok, result = pcall(make_request, url, options)
+
+        if span and type(span) == "table" and span.finish then
+            pcall(function() span:finish(ok and "ok" or "internal_error") end)
+        end
+
+        if not ok then
+            error(result)
+        end
+        return result
+    end
+end
+
 ---LuaSocket integration functions
 http_client.luasocket = luasocket
 

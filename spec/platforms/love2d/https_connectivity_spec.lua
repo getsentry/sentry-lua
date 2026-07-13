@@ -22,25 +22,35 @@ describe("Love2D HTTPS connectivity", function()
         _G.love = nil
     end)
     
-    describe("HTTP client functionality", function()
+    -- These tests reach real endpoints; opt in with SENTRY_LIVE_TESTS=1 so the
+    -- default suite stays hermetic and does not flake on third-party outages.
+    describe("HTTP client functionality (live network)", function()
+        local live = os.getenv("SENTRY_LIVE_TESTS")
+
         it("should successfully make HTTPS requests to test endpoints", function()
+            if not live then
+                return pending("set SENTRY_LIVE_TESTS=1 to run live network tests")
+            end
             local response = http.request({
                 url = "https://httpbin.org/get",
                 method = "GET",
                 timeout = 10
             })
-            
+
             assert.is_true(response.success)
             assert.equals(200, response.status)
         end)
-        
+
         it("should handle HTTPS request failures gracefully", function()
+            if not live then
+                return pending("set SENTRY_LIVE_TESTS=1 to run live network tests")
+            end
             local response = http.request({
                 url = "https://nonexistent-domain-for-testing.com/endpoint",
-                method = "GET", 
+                method = "GET",
                 timeout = 5
             })
-            
+
             assert.is_false(response.success)
             assert.is_not_nil(response.error)
         end)

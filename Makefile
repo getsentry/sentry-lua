@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish roblox-all-in-one
+.PHONY: build test test-coverage coverage-report test-love clean install install-teal docs install-love2d ci-love2d test-rockspec test-rockspec-clean publish roblox-all-in-one bundle budget lint lint-all lint-soft
 
 # Install Teal compiler (for fresh systems without Teal)
 install-teal:
@@ -141,16 +141,16 @@ docs: build install-all
 	tealdoc html -o docs --all src/sentry/*.tl src/sentry/core/*.tl src/sentry/utils/*.tl src/sentry/platforms/**/*.tl
 
 # Lint code (strict)
+# Blocking lint (ratchet): fails if any allowlisted (known-clean) file regresses.
+# See scripts/lint.sh and scripts/lint-allowlist.txt.
 lint:
-	tl check src/sentry/init.tl
-	tl check src/sentry/core/context.tl
-	tl check src/sentry/core/transport.tl
-	tl check src/sentry/core/test_transport.tl
-	tl check src/sentry/core/file_io.tl
-	tl check src/sentry/core/file_transport.tl
-	tl check src/sentry/core/client.tl
-	tl check src/sentry/utils/*.tl
-	tl check src/sentry/platforms/**/*.tl
+	@bash scripts/lint.sh
+
+# Full-project tl check (non-blocking) — shows every remaining error, useful for
+# picking the next file to clean and add to the allowlist.
+lint-all:
+	-@tl -I . --global-env-def teal-types check $$(find src/sentry -name "*.tl" | tr '\n' ' ')
+	@echo "Full lint report above (non-blocking)." 
 
 # Lint code (permissive - ignore external module warnings)
 lint-soft:
@@ -317,4 +317,20 @@ roblox-all-in-one: build
 	@./scripts/generate-roblox-all-in-one.sh
 	@echo "✅ Validated examples/roblox/sentry-all-in-one.lua"
 	@echo "📋 This file contains the complete SDK and can be copy-pasted into Roblox Studio"
+
+# Amalgamate the built SDK into a single-file bundle for sandboxed platforms
+# (WoW addons, Factorio mods, Roblox) that lack require()/luarocks.
+bundle: build
+	@echo "Bundling SDK into a single file..."
+	@lua scripts/bundle.lua dist/sentry-bundle.lua
+	@echo "✅ Wrote dist/sentry-bundle.lua"
+
+# Enforce a size budget on the single-file bundle (guards against bloat).
+budget: bundle
+	@size=$$(wc -c < dist/sentry-bundle.lua); \
+	echo "Bundle size: $$size bytes"; \
+	if [ "$$size" -gt 307200 ]; then \
+		echo "❌ Bundle exceeds the 300KB budget"; exit 1; \
+	fi; \
+	echo "✅ Bundle within the 300KB budget"
 

@@ -9,6 +9,8 @@ local record Scope
    breadcrumbs: {table}
    max_breadcrumbs: number
    level: string
+   fingerprint: {string}
+   attachments: {table}
 end
 
 function Scope:new(): Scope
@@ -19,8 +21,15 @@ function Scope:new(): Scope
       contexts = {},
       breadcrumbs = {},
       max_breadcrumbs = 100,
-      level = nil  -- nil means inherit from client/event
+      level = nil,  -- nil means inherit from client/event
+      fingerprint = nil,
+      attachments = {}
    }, {__index = Scope}) as Scope
+end
+
+function Scope:add_attachment(attachment: table)
+   self.attachments = self.attachments or {}
+   table.insert(self.attachments, attachment)
 end
 
 function Scope:set_user(user: table)
@@ -44,6 +53,10 @@ function Scope:set_level(level: string)
    if valid_levels[level] then
       self.level = level
    end
+end
+
+function Scope:set_fingerprint(fingerprint: {string})
+   self.fingerprint = fingerprint
 end
 
 function Scope:add_breadcrumb(breadcrumb: table)
@@ -91,11 +104,25 @@ function Scope:clone(): Scope
    
    new_scope.level = self.level
    new_scope.max_breadcrumbs = self.max_breadcrumbs
-   
+
+   if self.fingerprint then
+      new_scope.fingerprint = {}
+      for i, fp in ipairs(self.fingerprint) do
+         new_scope.fingerprint[i] = fp
+      end
+   end
+
    for i, breadcrumb in ipairs(self.breadcrumbs) do
       new_scope.breadcrumbs[i] = breadcrumb
    end
-   
+
+   if self.attachments then
+      new_scope.attachments = {}
+      for i, att in ipairs(self.attachments) do
+         new_scope.attachments[i] = att
+      end
+   end
+
    return new_scope
 end
 
@@ -133,33 +160,25 @@ function Scope:apply_to_event(event: table): table
       end
    end
    
-   -- Apply trace context if active (check for distributed tracing)
-   local success, tracing = pcall(require, "sentry.tracing.propagation")
-   if success and tracing and tracing.get_current_context then
-      local trace_context = tracing.get_current_context()
-      if trace_context then
-         event.contexts = event.contexts or {}
-         event.contexts.trace = {
-            trace_id = trace_context.trace_id,
-            span_id = trace_context.span_id,
-            parent_span_id = trace_context.parent_span_id
-         }
-      end
-   end
-   
-   -- Apply breadcrumbs
+   -- Append breadcrumbs (so merging global -> isolation -> current accumulates
+   -- rather than overwriting). Trace context is applied by the client, not here.
    if #self.breadcrumbs > 0 then
-      event.breadcrumbs = {}
-      for i, breadcrumb in ipairs(self.breadcrumbs) do
-         event.breadcrumbs[i] = breadcrumb
+      event.breadcrumbs = event.breadcrumbs or {}
+      for _, breadcrumb in ipairs(self.breadcrumbs) do
+         table.insert(event.breadcrumbs, breadcrumb)
       end
    end
-   
+
    -- Apply level if set on scope
    if self.level then
       event.level = self.level
    end
-   
+
+   -- Apply fingerprint if set
+   if self.fingerprint and #self.fingerprint > 0 then
+      event.fingerprint = self.fingerprint
+   end
+
    return event
 end
 

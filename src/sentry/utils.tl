@@ -161,7 +161,11 @@ end
 ---@return number timestamp Current timestamp in milliseconds
 function utils.get_timestamp_ms(): number
     -- Try to use socket.gettime if available for higher precision
-    local success, socket_module = pcall(require, "socket")
+    -- (non-literal module name so lint does not require the optional module)
+    local success, socket_module = pcall(function(): any
+        local mod = "socket"
+        return require(mod)
+    end)
     if success and socket_module and type(socket_module) == "table" then
         local socket_table = socket_module as {string: any}
         if socket_table["gettime"] and type(socket_table["gettime"]) == "function" then

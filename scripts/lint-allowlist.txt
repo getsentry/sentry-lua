@@ -1,0 +1,26 @@
+# Files that MUST pass 'tl check' cleanly (the blocking lint ratchet).
+# Add a file here once it (and its whole require-tree) is tl-check-clean.
+# Regenerate candidates: make lint-all
+src/sentry/core/context.tl
+src/sentry/core/file_io.tl
+src/sentry/core/queue.tl
+src/sentry/core/rate_limiter.tl
+src/sentry/core/scheduler.tl
+src/sentry/core/scrubber.tl
+src/sentry/core/session.tl
+src/sentry/platform_loader.tl
+src/sentry/platforms/factorio/context.tl
+src/sentry/platforms/love2d/os_detection.tl
+src/sentry/platforms/nginx/os_detection.tl
+src/sentry/platforms/roblox/os_detection.tl
+src/sentry/platforms/standard/os_detection.tl
+src/sentry/platforms/wow/context.tl
+src/sentry/tracing/headers.tl
+src/sentry/tracing/propagation.tl
+src/sentry/types.tl
+src/sentry/utils.tl
+src/sentry/utils/config.tl
+src/sentry/utils/dsn.tl
+src/sentry/utils/os.tl
+src/sentry/utils/time.tl
+src/sentry/version.tl

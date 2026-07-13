@@ -107,8 +107,19 @@ function json.encode(obj)
     return HttpService:JSONEncode(obj)
 end
 
-function json.decode(str)  
+function json.decode(str)
     return HttpService:JSONDecode(str)
+end
+
+-- Generate a 32-char hex event id (uuid4 without dashes)
+local function generate_event_id()
+    local chars = "0123456789abcdef"
+    local result = {}
+    for _ = 1, 32 do
+        local idx = math.random(1, #chars)
+        result[#result + 1] = chars:sub(idx, idx)
+    end
+    return table.concat(result)
 end
 JSON_EOF
 
@@ -166,8 +177,8 @@ function dsn_utils.parse_dsn(dsn_string)
     }, nil
 end
 
-function dsn_utils.build_ingest_url(dsn)
-    return "https://" .. dsn.host .. "/api/" .. dsn.project_id .. "/store/"
+function dsn_utils.build_envelope_url(dsn)
+    return "https://" .. dsn.host .. "/api/" .. dsn.project_id .. "/envelope/"
 end
 
 function dsn_utils.build_auth_header(dsn)
@@ -191,7 +202,7 @@ RobloxTransport.__index = RobloxTransport
 function RobloxTransport:new()
     local transport = setmetatable({
         dsn = nil,
-        endpoint = nil, 
+        envelope_endpoint = nil,
         headers = nil
     }, RobloxTransport)
     return transport
@@ -204,40 +215,53 @@ function RobloxTransport:configure(config)
     end
 
     self.dsn = dsn
-    self.endpoint = dsn_utils.build_ingest_url(dsn)
+    self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
     self.headers = {
         ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn),
     }
-    
-    -- Configuration successful
-    
+
     return self
 end
 
-function RobloxTransport:send(event)
+-- Build a Sentry envelope (single event item) from an event table.
+local function build_event_envelope(event)
+    local payload = json.encode(event)
+    local envelope_header = json.encode({
+        event_id = event.event_id,
+        sent_at = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    })
+    local item_header = json.encode({
+        type = "event",
+        length = #payload
+    })
+    return envelope_header .. "\n" .. item_header .. "\n" .. payload
+end
+
+-- Ships a pre-built event as a Sentry envelope to the envelope endpoint.
+function RobloxTransport:send_envelope(event)
     if not game then
         return false, "Not in Roblox environment"
     end
 
     local success_service, HttpService = pcall(function()
-        return game:GetService("HttpService") 
+        return game:GetService("HttpService")
     end)
 
     if not success_service or not HttpService then
         return false, "HttpService not available in Roblox"
     end
 
-    local body = json.encode(event)
+    local body = build_event_envelope(event)
 
     local success, response = pcall(function()
-        return HttpService:PostAsync(self.endpoint, body,
+        return HttpService:PostAsync(self.envelope_endpoint, body,
             Enum.HttpContentType.ApplicationJson,
             false,
             self.headers)
     end)
 
     if success then
-        return true, "Event sent via Roblox HttpService"
+        return true, "Envelope sent via Roblox HttpService"
     else
         return false, "Roblox HTTP error: " .. tostring(response)
     end
@@ -340,13 +364,12 @@ function Client:capture_message(message, level)
     level = level or "info"
     
     local event = {
-        message = {
-            message = message
-        },
+        event_id = generate_event_id(),
+        message = message,
         level = level,
         timestamp = os.time(),
         environment = self.config.environment or "production",
-        release = self.config.release or "unknown", 
+        release = self.config.release or "unknown",
         platform = "roblox",
         sdk = {
             name = "sentry.lua",
@@ -365,14 +388,16 @@ function Client:capture_message(message, level)
             }
         }
     }
-    
-    return self.transport:send(event)
+
+    self.transport:send_envelope(event)
+    return event.event_id
 end
 
 function Client:capture_exception(exception, level)
     level = level or "error"
     
     local event = {
+        event_id = generate_event_id(),
         exception = {
             values = {
                 {
@@ -403,8 +428,9 @@ function Client:capture_exception(exception, level)
             }
         }
     }
-    
-    return self.transport:send(event)
+
+    self.transport:send_envelope(event)
+    return event.event_id
 end
 
 function Client:set_user(user)

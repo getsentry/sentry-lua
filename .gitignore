@@ -1,4 +1,5 @@
 build/
+dist/
 !tlconfig.lua
 !spec/*.lua
 

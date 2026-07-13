@@ -44,6 +44,18 @@ describe("HTTP Integration Tests", function()
             end)
         end)
         
+        describe("wrap_with_span", function()
+            it("injects headers and does not crash without a transaction", function()
+                tracing.start_trace()
+                local wrapped = http_client.wrap_with_span(function(url, options)
+                    return { url = url, headers = options.headers or {} }
+                end)
+                local result = wrapped("https://example.com", {method = "GET"})
+                assert.equal("https://example.com", result.url)
+                assert.is_not_nil(result.headers["sentry-trace"])
+            end)
+        end)
+
         describe("luasocket integration", function()
             it("should wrap LuaSocket http module", function()
                 local mock_http = {

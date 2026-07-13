@@ -16,92 +16,26 @@ local function hook_error_handler(client: any): function, function
    local original_errorhandler = (_G as any).love and (_G as any).love.errorhandler
    
    local function sentry_errorhandler(msg: string): any
-      -- Capture the error in Sentry as a fatal exception
+      -- Capture the crash as an unhandled fatal exception and flush before the
+      -- app tears down. Wrapped so the SDK never interferes with the crash path.
       if client then
-         -- Create exception mechanism with handled: false (fatal)
-         local exception: {string: any} = {
-            type = "RuntimeError",
-            value = tostring(msg),
-            mechanism = {
-               type = "love.errorhandler",
-               handled = false,
-               synthetic = false
-            }
-         }
-         
-         -- Add stacktrace
-         local stacktrace = debug.traceback(msg, 2)
-         if stacktrace then
-            exception.stacktrace = {
-               frames = {} -- TODO: Parse stacktrace frames if needed
-            }
-         end
-         
-         -- Create Sentry event
-         local event: {string: any} = {
-            level = "fatal",
-            exception = {
-               values = {exception}
-            },
-            extra = {
-               error_message = tostring(msg),
-               love_errorhandler = true
-            }
-         }
-         
-         -- Create a proper Sentry event with mechanism.handled: false
-         local stacktrace = require("sentry.utils.stacktrace")
-         local serialize = require("sentry.utils.serialize")
-         local stack_trace = stacktrace.get_stack_trace(2)
-         
-         -- Create event with proper exception mechanism
-         local event = serialize.create_event("fatal", tostring(msg), 
-            client.options.environment or "production", 
-            client.options.release, stack_trace)
-         
-         -- Add exception with mechanism.handled: false
-         event.exception = {
-            values = {{
-               type = "RuntimeError",
-               value = tostring(msg),
+         pcall(function()
+            -- Best-effort: attach a screenshot of the crash frame.
+            local ok_ss, screenshot = pcall(require, "sentry.platforms.love2d.screenshot")
+            if ok_ss and screenshot then
+               screenshot.capture(client)
+            end
+            client:capture_exception(tostring(msg), "fatal", {
                mechanism = {
                   type = "love.errorhandler",
                   handled = false,
                   synthetic = false
-               },
-               stacktrace = stack_trace
-            }}
-         }
-         
-         -- Apply scope data to event
-         event = client.scope:apply_to_event(event)
-         
-         -- Apply before_send hook if configured
-         if client.options.before_send then
-            event = client.options.before_send(event)
-            if not event then
-               return -- Event was filtered out
-            end
-         end
-         
-         -- Send event directly via transport
-         if client.transport then
-            local success, err = client.transport:send(event)
-            if client.options.debug then
-               if success then
-                  print("[Sentry] Fatal error sent: " .. event.event_id)
-               else
-                  print("[Sentry] Failed to send fatal error: " .. tostring(err))
-               end
-            end
-            
-            -- Force immediate flush to ensure error is sent before app crashes
-            if client.transport.flush then
-               client.transport:flush()
-            end
-         end
+               }
+            })
+            client:flush(2000)
+         end)
       end
-      
+
       -- Call original error handler if it exists, or create default behavior
       if original_errorhandler then
          local ok, result = xpcall(original_errorhandler, debug.traceback, msg)

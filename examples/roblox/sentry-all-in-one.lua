@@ -23,7 +23,7 @@
 ]]--
 
 -- ⚠️ UPDATE THIS WITH YOUR SENTRY DSN
-local SENTRY_DSN = "https://e247e6e48f8f482499052a65adaa9f6b@o117736.ingest.us.sentry.io/4504930623356928"
+local SENTRY_DSN = "https://your-key@your-org.ingest.sentry.io/your-project-id"
 
 print("🚀 Starting Sentry All-in-One Integration")
 print("DSN: ***" .. string.sub(SENTRY_DSN, -10))
@@ -52,8 +52,19 @@ function json.encode(obj)
     return HttpService:JSONEncode(obj)
 end
 
-function json.decode(str)  
+function json.decode(str)
     return HttpService:JSONDecode(str)
+end
+
+-- Generate a 32-char hex event id (uuid4 without dashes)
+local function generate_event_id()
+    local chars = "0123456789abcdef"
+    local result = {}
+    for _ = 1, 32 do
+        local idx = math.random(1, #chars)
+        result[#result + 1] = chars:sub(idx, idx)
+    end
+    return table.concat(result)
 end
 
 -- ============================================================================
@@ -106,8 +117,8 @@ function dsn_utils.parse_dsn(dsn_string)
     }, nil
 end
 
-function dsn_utils.build_ingest_url(dsn)
-    return "https://" .. dsn.host .. "/api/" .. dsn.project_id .. "/store/"
+function dsn_utils.build_envelope_url(dsn)
+    return "https://" .. dsn.host .. "/api/" .. dsn.project_id .. "/envelope/"
 end
 
 function dsn_utils.build_auth_header(dsn)
@@ -125,7 +136,7 @@ RobloxTransport.__index = RobloxTransport
 function RobloxTransport:new()
     local transport = setmetatable({
         dsn = nil,
-        endpoint = nil, 
+        envelope_endpoint = nil,
         headers = nil
     }, RobloxTransport)
     return transport
@@ -138,76 +149,54 @@ function RobloxTransport:configure(config)
     end
 
     self.dsn = dsn
-    self.endpoint = dsn_utils.build_ingest_url(dsn)
+    self.envelope_endpoint = dsn_utils.build_envelope_url(dsn)
     self.headers = {
         ["X-Sentry-Auth"] = dsn_utils.build_auth_header(dsn),
     }
-    
-    -- Debug DSN configuration
-    print("🔧 TRANSPORT CONFIGURATION DEBUG:")
-    print("  DSN parsed successfully: " .. tostring(dsn.public_key ~= nil))
-    print("  Endpoint: " .. self.endpoint)
-    print("  Headers configured: " .. tostring(self.headers ~= nil))
-    
+
     return self
 end
 
-function RobloxTransport:send(event)
+-- Build a Sentry envelope (single event item) from an event table.
+local function build_event_envelope(event)
+    local payload = json.encode(event)
+    local envelope_header = json.encode({
+        event_id = event.event_id,
+        sent_at = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    })
+    local item_header = json.encode({
+        type = "event",
+        length = #payload
+    })
+    return envelope_header .. "\n" .. item_header .. "\n" .. payload
+end
+
+-- Ships a pre-built event as a Sentry envelope to the envelope endpoint.
+function RobloxTransport:send_envelope(event)
     if not game then
         return false, "Not in Roblox environment"
     end
 
     local success_service, HttpService = pcall(function()
-        return game:GetService("HttpService") 
+        return game:GetService("HttpService")
     end)
 
     if not success_service or not HttpService then
         return false, "HttpService not available in Roblox"
     end
 
-    local body = json.encode(event)
-    
-    -- Debug output: request details
-    print("🌐 HTTP REQUEST DEBUG:")
-    print("  Endpoint: " .. self.endpoint)
-    print("  Content-Type: application/json")
-    print("  Body length: " .. string.len(body) .. " chars")
-    print("  Headers:")
-    for key, value in pairs(self.headers) do
-        if key == "X-Sentry-Auth" then
-            -- Hide sensitive key, but show structure
-            print("    " .. key .. ": " .. string.sub(value, 1, 50) .. "...")
-        else
-            print("    " .. key .. ": " .. value)
-        end
-    end
-    print("  Body preview: " .. string.sub(body, 1, 100) .. "...")
+    local body = build_event_envelope(event)
 
     local success, response = pcall(function()
-        return HttpService:PostAsync(self.endpoint, body,
+        return HttpService:PostAsync(self.envelope_endpoint, body,
             Enum.HttpContentType.ApplicationJson,
             false,
             self.headers)
     end)
 
-    -- Debug output: response details
-    print("🌐 HTTP RESPONSE DEBUG:")
     if success then
-        print("  Status: SUCCESS")
-        print("  Response type: " .. type(response))
-        if type(response) == "string" then
-            print("  Response length: " .. string.len(response) .. " chars")
-            print("  Response preview: " .. string.sub(response or "", 1, 200))
-        else
-            print("  Response content: " .. tostring(response))
-        end
-        print("✅ Event sent successfully to Sentry!")
-        return true, "Event sent via Roblox HttpService"
+        return true, "Envelope sent via Roblox HttpService"
     else
-        print("  Status: FAILED")
-        print("  Error type: " .. type(response))
-        print("  Error details: " .. tostring(response))
-        print("❌ Failed to send event to Sentry!")
         return false, "Roblox HTTP error: " .. tostring(response)
     end
 end
@@ -290,10 +279,7 @@ function Client:new(config)
     
     client.transport:configure(config)
     
-    print("🔧 Sentry client initialized")
-    print("   Environment: " .. (config.environment or "production"))
-    print("   Release: " .. (config.release or "unknown"))
-    print("   SDK Version: " .. version())
+    -- Client initialized successfully
     
     return client
 end
@@ -302,13 +288,12 @@ function Client:capture_message(message, level)
     level = level or "info"
     
     local event = {
-        message = {
-            message = message
-        },
+        event_id = generate_event_id(),
+        message = message,
         level = level,
         timestamp = os.time(),
         environment = self.config.environment or "production",
-        release = self.config.release or "unknown", 
+        release = self.config.release or "unknown",
         platform = "roblox",
         sdk = {
             name = "sentry.lua",
@@ -327,28 +312,21 @@ function Client:capture_message(message, level)
             }
         }
     }
-    
-    print("📨 Capturing message: " .. message .. " [" .. level .. "]")
-    print("🔄 About to call transport:send...")
-    
-    local success, result = self.transport:send(event)
-    print("🔄 Transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
-    
-    return success, result
+
+    self.transport:send_envelope(event)
+    return event.event_id
 end
 
 function Client:capture_exception(exception, level)
     level = level or "error"
     
     local event = {
+        event_id = generate_event_id(),
         exception = {
             values = {
                 {
                     type = exception.type or "RobloxError",
-                    value = exception.message or tostring(exception),
-                    stacktrace = {
-                        frames = {}
-                    }
+                    value = exception.message or tostring(exception)
                 }
             }
         },
@@ -374,34 +352,25 @@ function Client:capture_exception(exception, level)
             }
         }
     }
-    
-    print("🚨 Capturing exception: " .. (exception.message or tostring(exception)))
-    print("🔄 About to call transport:send for exception...")
-    
-    local success, result = self.transport:send(event)
-    print("🔄 Exception transport call completed. Success: " .. tostring(success) .. ", Result: " .. tostring(result))
-    
-    return success, result
+
+    self.transport:send_envelope(event)
+    return event.event_id
 end
 
 function Client:set_user(user)
     self.scope:set_user(user)
-    print("👤 User context set: " .. (user.username or user.id or "unknown"))
 end
 
 function Client:set_tag(key, value)
     self.scope:set_tag(key, value)
-    print("🏷️ Tag set: " .. key .. " = " .. tostring(value))
 end
 
 function Client:set_extra(key, value)
     self.scope:set_extra(key, value)
-    print("📝 Extra set: " .. key)
 end
 
 function Client:add_breadcrumb(breadcrumb)
     self.scope:add_breadcrumb(breadcrumb)
-    print("🍞 Breadcrumb added: " .. (breadcrumb.message or "no message"))
 end
 
 -- ============================================================================
@@ -470,43 +439,17 @@ function sentry.close()
 end
 
 -- Initialize Sentry with provided DSN
-print("\n🔧 Initializing Sentry...")
 sentry.init({
     dsn = SENTRY_DSN,
     environment = "roblox-production",
     release = "1.0.0"
 })
 
--- Run integration tests using real SDK API
-print("\n🧪 Running integration tests...")
-
--- Test message capture
-sentry.capture_message("All-in-one integration test message", "info")
-
--- Test user context
-sentry.set_user({
-    id = "roblox-test-user",
-    username = "TestPlayer"
-})
-
--- Test tags
-sentry.set_tag("integration", "all-in-one")
-sentry.set_tag("platform", "roblox")
-
--- Test extra context
-sentry.set_extra("test_type", "integration")
-
--- Test breadcrumbs  
-sentry.add_breadcrumb({
-    message = "Integration test started",
-    category = "test",
-    level = "info"
-})
-
--- Test exception capture
+-- Run integration tests
+sentry.capture_message("Sentry integration test", "info")
 sentry.capture_exception({
     type = "IntegrationTestError",
-    message = "Test exception from all-in-one integration"
+    message = "Test exception from Roblox all-in-one integration"
 })
 
 -- Make sentry available globally for easy access with multiple methods
@@ -548,60 +491,18 @@ end
 -- Force global persistence 
 rawset(_G, "sentry", sentry)
 
--- Debug global variable setup
-print("\n🔧 GLOBAL VARIABLE DEBUG:")
-print("  _G.sentry exists: " .. tostring(_G.sentry ~= nil))
-print("  rawget(_G, 'sentry') exists: " .. tostring(rawget(_G, "sentry") ~= nil))
-print("  sentry.capture_message exists: " .. tostring(sentry.capture_message ~= nil))
-if _G.sentry then
-    print("  _G.sentry.capture_message exists: " .. tostring(_G.sentry.capture_message ~= nil))
-end
-if shared and shared.sentry then
-    print("  shared.sentry exists: " .. tostring(shared.sentry ~= nil))
-end
-if getgenv and getgenv().sentry then
-    print("  getgenv().sentry exists: " .. tostring(getgenv().sentry ~= nil))
-end
+-- Sentry SDK is now available globally
 
-print("\n🎉 ALL-IN-ONE INTEGRATION COMPLETED!")
-print("=" .. string.rep("=", 40))
-print("📊 Check your Sentry dashboard for test events")
-print("🔗 Dashboard: https://sentry.io/")
-print("")
-print("💡 MANUAL TESTING COMMANDS (multiple access methods):")
-print("")
-print("🔹 Try these in order until one works:")
-print("_G.sentry.capture_message('Hello World!', 'info')")
-print("rawget(_G, 'sentry').capture_message('Hello rawget!', 'info')")
-print("shared.sentry.capture_message('Hello shared!', 'info')")  
-print("getgenv().sentry.capture_message('Hello getgenv!', 'info')")
-print("")
-print("🔹 Exception examples:")
-print("_G.sentry.capture_exception({type = 'TestError', message = 'Manual error'})")
-print("rawget(_G, 'sentry').capture_exception({type = 'RawgetError', message = 'Via rawget'})")
-print("")
-print("🔹 Other functions:")
-print("_G.sentry.set_user({id = '123', username = 'YourName'})")
-print("_G.sentry.set_tag('level', '5')")
-print("_G.sentry.add_breadcrumb({message = 'Test action', category = 'test'})")
-print("")
-print("✅ Integration ready - uses real SDK " .. version() .. "!")
+print("✅ Sentry integration ready - SDK " .. version())
+print("💡 Use: _G.sentry.capture_message('Hello', 'info')")
 
 -- Also try alternative global setups for better Roblox compatibility  
 if getgenv then
     getgenv().sentry = sentry
-    print("📦 Also available via getgenv().sentry")
 end
 
 -- Set up a test function that can be called easily
 _G.testSentry = function()
-    print("🧪 Testing Sentry functionality...")
-    if _G.sentry then
-        _G.sentry.capture_message("Test from _G.testSentry() function", "info")
-        print("✅ Test message sent!")
-    else
-        print("❌ _G.sentry not available")
-    end
+    _G.sentry.capture_message("Test from _G.testSentry() function", "info")
+    print("✅ Test message sent!")
 end
-
-print("💡 Quick test function available: _G.testSentry()")

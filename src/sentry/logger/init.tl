@@ -121,17 +121,17 @@ local function get_default_attributes(parent_span_id: string): {string: Attribut
     attributes["sentry.sdk.name"] = {value = "sentry.lua", type = "string"}
     attributes["sentry.sdk.version"] = {value = sdk_version, type = "string"}
     
-    -- Get Sentry client context if available
+    -- Get Sentry client context if available (default log attributes)
     local sentry_success, sentry = pcall(require, "sentry")
-    if sentry_success and sentry._client and sentry._client.config then
-        local client_config = sentry._client.config
-        
-        if client_config.environment then
-            attributes["sentry.environment"] = {value = client_config.environment, type = "string"}
+    if sentry_success and sentry._client and sentry._client.options then
+        local client_options = sentry._client.options
+
+        if client_options.environment then
+            attributes["sentry.environment"] = {value = client_options.environment, type = "string"}
         end
-        
-        if client_config.release then
-            attributes["sentry.release"] = {value = client_config.release, type = "string"}
+
+        if client_options.release then
+            attributes["sentry.release"] = {value = client_options.release, type = "string"}
         end
     end
     
@@ -239,41 +239,26 @@ local function add_to_buffer(record: LogRecord)
     end
 end
 
--- Flush the log buffer
+-- Flush the log buffer as a single `log` envelope through the client queue
+-- (so logs share rate limiting and client reports with everything else).
 function logger.flush()
     if not buffer or #buffer.logs == 0 then
         return
     end
-    
-    -- Get Sentry client
+
     local sentry_success, sentry = pcall(require, "sentry")
-    if not sentry_success or not sentry._client or not sentry._client.transport then
+    if not sentry_success or not sentry._client then
         -- Clear buffer even if we can't send
         buffer.logs = {}
         buffer.last_flush = os.time()
         return
     end
-    
-    -- Get version from central location
-    local version_success, version = pcall(require, "sentry.version")
-    local sdk_version = version_success and version or "unknown"
-    
-    -- Build log envelope using the proper log format
+
     local envelope_body = envelope.build_log_envelope(buffer.logs)
-    
-    -- Send via envelope transport only (no fallback to /store endpoint)
-    if sentry._client.transport.send_envelope then
-        local success, err = sentry._client.transport:send_envelope(envelope_body)
-        if success then
-            print("[Sentry] Sent " .. #buffer.logs .. " log records via envelope")
-        else
-            print("[Sentry] Failed to send log envelope: " .. tostring(err))
-        end
-    else
-        print("[Sentry] No envelope transport available for logs")
+    if envelope_body ~= "" then
+        (sentry._client as any):enqueue(envelope_body, {"log_item"})
     end
-    
-    -- Clear buffer
+
     buffer.logs = {}
     buffer.last_flush = os.time()
 end

@@ -23,6 +23,7 @@ local record TraceOptions
 end
 
 local record Propagation
+    set_sdk_metadata: function(metadata: {string: string})
     create_context: function(trace_data: TraceData, baggage_data: {string: string}): PropagationContext
     populate_dynamic_sampling_context: function(context: PropagationContext)
     get_current_context: function(): PropagationContext
@@ -51,6 +52,16 @@ local headers = require("sentry.tracing.headers")
 
 -- Current propagation context (stored per scope)
 local current_context: PropagationContext = nil
+
+-- SDK identity used to populate the Dynamic Sampling Context / baggage. Set by
+-- the client at init (public_key, environment, release).
+local sdk_metadata: {string: string} = {}
+
+---Register SDK identity for the dynamic sampling context.
+---@param metadata {string: string}
+function propagation.set_sdk_metadata(metadata: {string: string})
+   sdk_metadata = metadata or {}
+end
 
 ---Initialize a new propagation context
 ---@param trace_data table? Optional incoming trace data from headers
@@ -97,21 +108,23 @@ function propagation.populate_dynamic_sampling_context(context: PropagationConte
     end
 
     local dsc = context.dynamic_sampling_context
-    
-    -- Add trace ID to DSC
+
+    -- Frozen Dynamic Sampling Context (sentry-* keys travel in the baggage header).
     dsc["sentry-trace_id"] = context.trace_id
-    
-    -- Add public key (would come from SDK configuration)
-    -- dsc["sentry-public_key"] = sdk_config.public_key
-    
-    -- Add environment if available
-    -- dsc["sentry-environment"] = sdk_config.environment
-    
-    -- Add release if available  
-    -- dsc["sentry-release"] = sdk_config.release
-    
-    -- Note: We don't add sentry-sampled in TwP mode since sampling is deferred
-    -- This will be added when regular tracing (with spans) is enabled
+    if sdk_metadata["public_key"] then
+        dsc["sentry-public_key"] = sdk_metadata["public_key"]
+    end
+    if sdk_metadata["environment"] then
+        dsc["sentry-environment"] = sdk_metadata["environment"]
+    end
+    if sdk_metadata["release"] then
+        dsc["sentry-release"] = sdk_metadata["release"]
+    end
+    -- In TwP mode sampling is deferred (context.sampled is nil), so we only add
+    -- sentry-sampled once a decision exists.
+    if context.sampled ~= nil then
+        dsc["sentry-sampled"] = context.sampled and "true" or "false"
+    end
 end
 
 ---Get the current propagation context
@@ -208,7 +221,17 @@ function propagation.get_trace_headers_for_request(target_url: string, options: 
         span_id = trace_data.span_id,
         sampled = trace_data.sampled
     }
-    headers.inject_trace_headers(result_headers, headers_trace_data, context.baggage, {
+
+    -- Baggage carries the frozen DSC (sentry-* keys) plus any incoming baggage.
+    local baggage: {string: string} = {}
+    for k, v in pairs(context.baggage or {}) do
+        baggage[k] = v
+    end
+    for k, v in pairs(context.dynamic_sampling_context or {}) do
+        baggage[k] = v
+    end
+
+    headers.inject_trace_headers(result_headers, headers_trace_data, baggage, {
         include_traceparent = options.include_traceparent
     })
     

@@ -1,14 +1,14 @@
+-- Sentry inside Redis Lua scripting.
+--
+-- When running inside Redis (the `redis` global is present), the SDK
+-- automatically selects the Redis transport, which LPUSHes serialized Sentry
+-- envelopes onto a list for a companion uploader to deliver out-of-band.
 local sentry = require("sentry.init")
-local redis_integration = require("sentry.integrations.redis")
-
--- Initialize Sentry with Redis transport
-local RedisTransport = redis_integration.setup_redis_integration()
 
 sentry.init({
    dsn = "https://your-dsn@sentry.io/project-id",
    environment = "redis",
-   transport = RedisTransport,
-   redis_key = "sentry:events"
+   redis_key = "sentry:envelopes",  -- Redis list that receives envelopes
 })
 
 -- Redis-specific context

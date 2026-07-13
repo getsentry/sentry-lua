@@ -1,6 +1,6 @@
--- Redis transport for queuing events
+-- Redis transport: queues serialized envelopes on a Redis list for a companion
+-- uploader/relay to drain. Used inside Redis Lua scripting (no outbound HTTP).
 local transport_utils = require("sentry.utils.transport")
-local json = require("sentry.utils.json")
 local version = require("sentry.version")
 
 local record RedisTransport
@@ -8,33 +8,32 @@ local record RedisTransport
    timeout: number
    headers: {string: string}
    redis_key: string
+   max_queue: number
 end
 
-function RedisTransport:send(event: table): boolean, string
+function RedisTransport:send_envelope(payload: string, _categories: {string}): boolean, string
    if not _G.redis then
       return false, "Redis not available in this environment"
    end
-   
-   local body = json.encode(event)
-   
+
    local success, err = pcall(function()
-      (_G.redis as any).call("LPUSH", self.redis_key or "sentry:events", body)
-      (_G.redis as any).call("LTRIM", self.redis_key or "sentry:events", 0, 999)
+      (_G.redis as any).call("LPUSH", self.redis_key, payload)
+      (_G.redis as any).call("LTRIM", self.redis_key, 0, self.max_queue - 1)
    end)
-   
+
    if success then
-      return true, "Event queued in Redis"
-   else
-      return false, "Redis error: " .. tostring(err)
+      return true, "Envelope queued in Redis"
    end
+   return false, "Redis error: " .. tostring(err)
 end
 
 function RedisTransport:configure(config: table): transport_utils.Transport
    self.endpoint = (config as any).dsn or ""
    self.timeout = (config as any).timeout or 30
-   self.redis_key = (config as any).redis_key or "sentry:events"
+   self.redis_key = (config as any).redis_key or "sentry:envelopes"
+   self.max_queue = (config as any).max_queue or 1000
    self.headers = {
-      ["Content-Type"] = "application/json",
+      ["Content-Type"] = "application/x-sentry-envelope",
       ["User-Agent"] = "sentry-lua-redis/" .. version
    }
    return self as transport_utils.Transport
